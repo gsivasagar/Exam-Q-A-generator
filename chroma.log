@@ -1,0 +1,31 @@
+[33mWARNING[0m:  [05-07-2025 00:27:44] chroma_server_nofile is set to 65535, but this is less than current soft limit of 1048575. chroma_server_nofile will not be set.
+[32mINFO[0m:     [05-07-2025 00:27:44] Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component System
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component OpenTelemetryClient
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component SqliteDB
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component SimpleQuotaEnforcer
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component Posthog
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component SimpleRateLimitEnforcer
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component LocalSegmentManager
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component LocalExecutor
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component SegmentAPI
+[36mDEBUG[0m:    [05-07-2025 00:27:44] Starting component SimpleAsyncRateLimitEnforcer
+[32mINFO[0m:     [05-07-2025 00:27:45] Started server process [[36m51510[0m]
+[32mINFO[0m:     [05-07-2025 00:27:45] Waiting for application startup.
+[32mINFO[0m:     [05-07-2025 00:27:45] Application startup complete.
+[32mINFO[0m:     [05-07-2025 00:27:45] Uvicorn running on [1mhttp://localhost:8000[0m (Press CTRL+C to quit)
+[32mINFO[0m:     [05-07-2025 00:28:22] ::1:50325 - "GET /api/v2/auth/identity HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:28:22] ::1:50326 - "GET /api/v2/tenants/default_tenant HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:28:22] ::1:50326 - "GET /api/v2/tenants/default_tenant/databases/default_database HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:28:22] ::1:50325 - "POST /api/v2/tenants/default_tenant/databases/default_database/collections HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:31:11] ::1:50355 - "GET /api/v2/auth/identity HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:31:11] ::1:50357 - "GET /api/v2/tenants/default_tenant HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:31:11] ::1:50357 - "GET /api/v2/tenants/default_tenant/databases/default_database HTTP/1.1" 200
+[36mDEBUG[0m:    [05-07-2025 00:31:11] Collection pdf_chunks already exists, returning existing collection.
+[32mINFO[0m:     [05-07-2025 00:31:11] ::1:50355 - "POST /api/v2/tenants/default_tenant/databases/default_database/collections HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:31:16] ::1:50355 - "POST /api/v2/tenants/default_tenant/databases/default_database/collections/178ab7a4-980a-4dda-a717-c9be86e4a025/query HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:33:46] ::1:50385 - "GET /api/v2/auth/identity HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:33:46] ::1:50386 - "GET /api/v2/tenants/default_tenant HTTP/1.1" 200
+[32mINFO[0m:     [05-07-2025 00:33:46] ::1:50386 - "GET /api/v2/tenants/default_tenant/databases/default_database HTTP/1.1" 200
+[36mDEBUG[0m:    [05-07-2025 00:33:46] Collection pdf_chunks already exists, returning existing collection.
+[32mINFO[0m:     [05-07-2025 00:33:46] ::1:50385 - "POST /api/v2/tenants/default_tenant/databases/default_database/collections HTTP/1.1" 200

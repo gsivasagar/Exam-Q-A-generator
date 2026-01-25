@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: exam-qa-generator
+    ports:
+      - "8501:8501"
+    volumes:
+      # Map the current directory to /app for live reloading and persistence
+      - .:/app
+    environment:
+      # Connect to host's Ollama instance
+      # For Linux, you might need to use --network="host" or the host's actual IP
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # - OLLAMA_MODEL=gemma3:latest # Uncomment to override model
+      # For Linux users unable to use host.docker.internal:
+      # extra_hosts:
+      #   - "host.docker.internal:host-gateway"
