@@ -5,6 +5,7 @@ import re
 from typing import Dict, Optional
 from dotenv import load_dotenv
 from ollama import Client
+import google.generativeai as genai
 
 load_dotenv()
 
@@ -24,14 +25,31 @@ Score (0.0 to 1.0): _____
 Feedback (short, clear): _____
 """
 
-def grade(reference: str, student: str, question: Optional[str] = None) -> Dict:
+def grade(
+    reference: str, 
+    student: str, 
+    question: Optional[str] = None,
+    provider: str = "Ollama",
+    gemini_api_key: Optional[str] = None,
+    ollama_model: str = "tinyllama-qa"
+) -> Dict:
     prompt = GRADE_PROMPT.format(
         reference=reference.strip(),
         student=student.strip(),
         question=question.strip() if question else ""
     )
-    response = client.generate(model=MODEL, prompt=prompt, stream=False)
-    text = response["response"]
+
+    if provider == "Gemini":
+        if not gemini_api_key:
+            return {"score": 0.0, "feedback": "Gemini API key is required when provider is Gemini"}
+        genai.configure(api_key=gemini_api_key)
+        # Using a model tailored for evaluation tasks or flash
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(prompt)
+        text = response.text
+    else:
+        response = client.generate(model=ollama_model, prompt=prompt, stream=False)
+        text = response["response"]
 
     try:
         score_line = [line for line in text.splitlines() if "Score" in line][0]

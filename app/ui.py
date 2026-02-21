@@ -30,8 +30,28 @@ st.set_page_config(page_title="Exam Q&A Generator", page_icon="📚", layout="wi
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
-st.title("📚 Exam Q&A Generator with Ollama")
+st.title("📚 Exam Q&A Generator")
 
+st.sidebar.title("⚙️ Configuration")
+provider = st.sidebar.radio("Select LLM Provider", ["Ollama", "Gemini"])
+gemini_api_key = ""
+if provider == "Gemini":
+    gemini_api_key = st.sidebar.text_input("Gemini API Key", type="password")
+    if not gemini_api_key:
+        gemini_api_key = os.getenv("GEMINI_API_KEY", "")
+        if not gemini_api_key:
+            st.sidebar.warning("Please enter your Gemini API key.")
+elif provider == "Ollama":
+    ollama_model = st.sidebar.text_input("Ollama Model", value="gemma3:latest")
+    with st.sidebar.expander("ℹ️ Ollama Setup Instructions"):
+        st.markdown(
+            f"1. Download and install [Ollama](https://ollama.com).\n"
+            f"2. Make sure the Ollama app is running.\n"
+            f"3. Pull the required model by running this command in your terminal:\n"
+            f"```bash\n"
+            f"ollama pull {ollama_model}\n"
+            f"```"
+        )
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. PDF UPLOAD & QUIZ GENERATION OPTIONS
 # ──────────────────────────────────────────────────────────────────────────────
@@ -61,12 +81,22 @@ if uploaded_files and st.button("Create Quiz"):
             pdf_path.write_bytes(file.read())
             ingest_pdf(str(pdf_path), doc_id=st.session_state.session_id)
 
+        if provider == "Gemini" and not gemini_api_key:
+            st.error("Please provide a Gemini API Key in the sidebar.")
+            st.stop()
+
         # Generate quiz questions
-        qa_pairs = generate_qa_pairs(
-            doc_id=st.session_state.session_id,
-            n=num_q,
-            topic=topic_filter.strip() if topic_filter else None,
-        )
+        qa_kwargs = {
+            "doc_id": st.session_state.session_id,
+            "n": num_q,
+            "topic": topic_filter.strip() if topic_filter else None,
+            "provider": provider,
+            "gemini_api_key": gemini_api_key
+        }
+        if provider == "Ollama":
+             qa_kwargs["ollama_model"] = ollama_model
+             
+        qa_pairs = generate_qa_pairs(**qa_kwargs)
 
         st.session_state.qa_pairs = qa_pairs
         st.success("Quiz ready! Scroll down to begin ⬇️")
@@ -93,7 +123,17 @@ if "qa_pairs" in st.session_state:
                         {**qa, "student": student, "score": 0.0, "feedback": "No answer submitted."}
                     )
                 else:
-                    res = grade(qa["answer"], student)
+                    grade_kwargs = {
+                        "reference": qa["answer"],
+                        "student": student,
+                        "question": qa["question"],
+                        "provider": provider,
+                        "gemini_api_key": gemini_api_key
+                    }
+                    if provider == "Ollama":
+                        grade_kwargs["ollama_model"] = ollama_model
+                        
+                    res = grade(**grade_kwargs)
                     graded.append({**qa, "student": student, **res})
 
         # Persist and store

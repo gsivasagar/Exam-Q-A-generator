@@ -8,6 +8,7 @@ import os, json, random, re
 from typing import List, Dict, Optional
 
 from ollama import Client
+import google.generativeai as genai
 from .vector_store import add_chunks, similarity_search
 from .pdf_loader import load_pdf
 
@@ -49,6 +50,9 @@ def generate_qa_pairs(
     doc_id: str,
     n: int = 10,
     topic: Optional[str] = None,
+    provider: str = "Ollama",
+    gemini_api_key: Optional[str] = None,
+    ollama_model: str = "gemma3:latest"
 ) -> List[Dict[str, str]]:
     query = topic if topic else "general"
     all_chunks = similarity_search(query=query, k=50, doc_id=doc_id)
@@ -70,11 +74,21 @@ def generate_qa_pairs(
         f"Context:\n{context.strip()}"
     )
 
-    response = _client.generate(model=MODEL, prompt=prompt)
-    print("📦 MODEL RAW RESPONSE:\n", response["response"])  # ✅ Right here
+    if provider == "Gemini":
+        if not gemini_api_key:
+            raise ValueError("Gemini API key is required when provider is Gemini")
+        genai.configure(api_key=gemini_api_key)
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(prompt)
+        response_text = response.text
+    else:
+        response = _client.generate(model=ollama_model, prompt=prompt)
+        response_text = response["response"]
+
+    print("📦 MODEL RAW RESPONSE:\n", response_text)  # ✅ Right here
 
     try:
-        return json.loads(_extract_first_json_array(response["response"]))
+        return json.loads(_extract_first_json_array(response_text))
     except Exception as exc:
         raise ValueError("Could not parse model response as JSON list") from exc
 
