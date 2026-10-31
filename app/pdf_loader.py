@@ -1,21 +1,70 @@
+"""PDF text extraction and sentence-aware chunking."""
+from __future__ import annotations
+
+import re
 from pathlib import Path
-from typing import List
-import PyPDF2, re, textwrap
+from typing import BinaryIO, List, NamedTuple, Union
 
-# Simple text cleaner
+from pypdf import PdfReader
+
+
+class Chunk(NamedTuple):
+    text: str
+    page: int  # 1-based page number the chunk came from
+
+
+class EmptyPDFError(ValueError):
+    """The PDF has no extractable text (e.g. a scanned document)."""
+
+
 def _clean(text: str) -> str:
-    # collapse whitespace, keep punctuation
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+    return re.sub(r"\s+", " ", text).strip()
 
-def load_pdf(path: str | Path, *, chunk_size: int = 300, overlap: int = 50) -> List[str]:
-    """Read a PDF and return cleaned overlapping text chunks."""
-    reader = PyPDF2.PdfReader(str(path))
-    full_text = " ".join(page.extract_text() or "" for page in reader.pages)
-    full_text = _clean(full_text)
 
-    # split into roughly `chunk_size`‑token portions with `overlap` words so context isn’t lost
-    words = full_text.split()
-    step = chunk_size - overlap
-    chunks = [" ".join(words[i : i + chunk_size]) for i in range(0, len(words), step)]
-    return [textwrap.shorten(chunk, width=chunk_size * 4) for chunk in chunks if chunk]
+def chunk_text(text: str, chunk_size: int = 300, overlap: int = 50) -> List[str]:
+    """Split text into ~chunk_size-word chunks on sentence boundaries.
+
+    Consecutive chunks share roughly `overlap` words so context isn't lost.
+    """
+    sentences = re.split(r"(?<=[.!?])\s+", _clean(text))
+    sentences = [s for s in sentences if s]
+    chunks: List[str] = []
+    current: List[str] = []
+    count = 0
+    for sent in sentences:
+        n = len(sent.split())
+        if current and count + n > chunk_size:
+            chunks.append(" ".join(current))
+            # carry trailing sentences worth ~overlap words into the next chunk
+            carry: List[str] = []
+            carried = 0
+            for s in reversed(current):
+                w = len(s.split())
+                if carried + w > overlap:
+                    break
+                carry.insert(0, s)
+                carried += w
+            current, count = carry, carried
+        current.append(sent)
+        count += n
+    if current:
+        chunks.append(" ".join(current))
+    return chunks
+
+
+def load_pdf(source: Union[str, Path, BinaryIO], *, chunk_size: int = 300, overlap: int = 50) -> List[Chunk]:
+    """Read a PDF (path or file-like) and return page-tagged text chunks.
+
+    Chunks never span pages, so every chunk can be cited as "file, p.N".
+    Raises EmptyPDFError if no text could be extracted.
+    """
+    reader = PdfReader(source if hasattr(source, "read") else str(source))
+    chunks: List[Chunk] = []
+    for page_no, page in enumerate(reader.pages, 1):
+        for text in chunk_text(page.extract_text() or "", chunk_size, overlap):
+            chunks.append(Chunk(text, page_no))
+    if not chunks:
+        raise EmptyPDFError(
+            "No text found in this PDF. It may be a scanned document without a text layer."
+        )
+    return chunks

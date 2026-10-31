@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+.env
+tmp/
+data/
+.chromadb/
+chroma_store/
+chroma_data/
+chroma.log
+*.db
+.pytest_cache/

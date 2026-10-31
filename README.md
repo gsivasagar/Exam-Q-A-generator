@@ -28,7 +28,7 @@ The easiest way to run the application is with Docker.
 4.  **Open in Browser**:
     Go to [http://localhost:8501](http://localhost:8501)
 
-> **Tip**: The database (`quiz_results.db`) and vector store are persisted in your local folder so you won't lose data when restarting the container.
+> **Tip**: The database and vector store are persisted in `./data` so you won't lose data when restarting the container.
 
 ## 🛠 Manual Installation
 
@@ -51,3 +51,10 @@ If you prefer running without Docker:
 ## 🔧 Configuration
 *   **Model**: Defaults to `gemma3:latest`. Change `OLLAMA_MODEL` in `docker-compose.yml` or `.env` to use a different model.
 *   **Ollama URL**: Defaults to `http://localhost:11434`.
+
+## 🧪 Development
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+Tests use a fake LLM and a real temporary Chroma store, so no Ollama is needed.
