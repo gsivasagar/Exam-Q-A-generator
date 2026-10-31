@@ -356,7 +356,7 @@ measurements to prove it.
 - [x] 0 Housekeeping (LICENSE and `gh auth setup-git` left for the owner: both are your decision/config)
 - [ ] 1 Evaluation harness (fills all "not measured" baseline rows)
 - [x] 2 LLM quick wins (live Ollama/Gemini runs and grading-repeatability measurement still pending: need a model)
-- [ ] 3 Pipeline refactor
+- [x] 3 Pipeline refactor
 - [ ] 4 Coverage-aware selection
 - [ ] 5 Embedder upgrade
 - [ ] 6 Chunking upgrade
