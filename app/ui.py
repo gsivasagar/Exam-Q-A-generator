@@ -7,11 +7,12 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))  # make "app" impor
 import logging
 import uuid
 
+import pandas as pd
 import streamlit as st
 
 from app import config
 from app.database import load_results, store_results
-from app.grader import grade
+from app.grader import grade_question
 from app.llm import LLMError, get_provider
 from app.pdf_loader import EmptyPDFError
 from app.qa_generator import generate_qa_pairs, ingest_pdf
@@ -54,6 +55,19 @@ def make_llm():
 uploaded_files = st.file_uploader("Upload one or more study PDFs", type="pdf", accept_multiple_files=True)
 topic_filter = st.text_input("🔍 *Optional topic filter* – only generate questions about this topic")
 num_q = st.slider("Number of quiz questions", min_value=5, max_value=25, value=10)
+TYPE_LABELS = {"Short answer": "short", "Multiple choice": "mcq", "Mixed": "mixed"}
+question_type = TYPE_LABELS[st.radio("Question type", list(TYPE_LABELS), horizontal=True)]
+
+
+def start_quiz(doc_id, n, topic, qtype):
+    """Generate a quiz from an already-ingested document set and put it in session state."""
+    qa_pairs = generate_qa_pairs(doc_id, make_llm(), n=n, topic=topic, question_type=qtype)
+    st.session_state.doc_id = doc_id
+    st.session_state.quiz_id = str(uuid.uuid4())
+    st.session_state.qa_pairs = qa_pairs
+    st.session_state.pop("graded", None)
+    if len(qa_pairs) < n:
+        st.warning(f"Only {len(qa_pairs)} usable questions were generated (requested {n}).")
 
 # ───────────── Create quiz ─────────────
 if uploaded_files and st.button("Create Quiz"):
@@ -65,16 +79,10 @@ if uploaded_files and st.button("Create Quiz"):
     for key in ("qa_pairs", "graded"):
         st.session_state.pop(key, None)
     try:
-        llm = make_llm()
         with st.spinner("Ingesting PDFs and generating questions – please wait …"):
             for f in uploaded_files:
                 ingest_pdf(None, doc_id, filename=f.name, data=f.getvalue())
-            qa_pairs = generate_qa_pairs(doc_id, llm, n=num_q, topic=topic_filter.strip() or None)
-        st.session_state.doc_id = doc_id
-        st.session_state.quiz_id = str(uuid.uuid4())
-        st.session_state.qa_pairs = qa_pairs
-        if len(qa_pairs) < num_q:
-            st.warning(f"Only {len(qa_pairs)} usable questions were generated (requested {num_q}).")
+            start_quiz(doc_id, num_q, topic_filter.strip() or None, question_type)
         st.success("Quiz ready! Scroll down to begin ⬇️")
     except EmptyPDFError as exc:
         delete_doc(doc_id)
@@ -90,7 +98,11 @@ if "qa_pairs" in st.session_state:
         answers = []
         for idx, qa in enumerate(st.session_state.qa_pairs, 1):
             st.subheader(f"Q{idx}: {qa['question']}")
-            answers.append(st.text_area("Your answer", key=f"ans_{idx}"))
+            key = f"ans_{st.session_state.quiz_id}_{idx}"
+            if qa.get("type") == "mcq":
+                answers.append(st.radio("Choose one", qa["options"], index=None, key=key) or "")
+            else:
+                answers.append(st.text_area("Your answer", key=key))
         submitted = st.form_submit_button("Submit answers & grade me")
 
     if submitted:
@@ -100,10 +112,7 @@ if "qa_pairs" in st.session_state:
             bar = st.progress(0.0, text="Grading …")
             total = len(answers)
             for i, (qa, student) in enumerate(zip(st.session_state.qa_pairs, answers), 1):
-                if not student.strip():
-                    res = {"score": 0.0, "feedback": "No answer submitted."}
-                else:
-                    res = grade(qa["answer"], student, llm, question=qa["question"])
+                res = grade_question(qa, student, llm)
                 graded.append({**qa, "student": student, **res})
                 bar.progress(i / total, text=f"Graded {i}/{total}")
             bar.empty()
@@ -134,11 +143,21 @@ if "graded" in st.session_state:
         st.markdown(f"**Feedback:** {g['feedback']}")
         with st.expander("Correct answer"):
             st.markdown(g["answer"])
+            if g.get("source"):
+                st.caption(f"📖 Source: {g['source']}" + (f", p.{g['page']}" if g.get("page") else ""))
         st.divider()
 
     st.write("### Recommended Topics to Review")
     topics = recommend(graded)
     st.write(", ".join(topics) if topics else "Great job – no weak topics detected!")
+
+    if topics and st.button("🎯 Practice my weak topics"):
+        try:
+            with st.spinner("Building a practice quiz …"):
+                start_quiz(st.session_state.doc_id, min(len(graded), 10), topics, question_type)
+            st.rerun()
+        except (LLMError, ValueError) as exc:
+            st.error(str(exc))
 
     st.download_button("📄 Download Quiz Summary as PDF", data=build_pdf(graded),
                        file_name="quiz_results.pdf", mime="application/pdf")
@@ -148,7 +167,7 @@ if "graded" in st.session_state:
         if df.empty:
             st.info("No history yet.")
         else:
-            df["timestamp"] = df["timestamp"].astype("datetime64[ns, UTC]")
+            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
             st.write("### Performance Over Time (this session)")
             st.line_chart(df.groupby(df["timestamp"].dt.date)["score"].mean())
             st.write("### Average Score by Topic")

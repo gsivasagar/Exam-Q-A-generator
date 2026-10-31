@@ -50,3 +50,58 @@ def test_full_quiz_flow(app, monkeypatch):
     assert "graded" in app.session_state
     assert all(g["score"] == 0.9 for g in app.session_state["graded"])
     assert any("Average Score" == m.label for m in app.metric)
+
+
+def test_mcq_flow_and_weak_topic_practice(store, tmp_path, monkeypatch):
+    import json
+    import streamlit as st
+    from app import config, llm
+
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "q.db")
+    seen_prompts = []
+
+    class McqLLM(FakeLLM):
+        def generate(self, prompt, *, schema=None):
+            seen_prompts.append(prompt)
+            self.calls += 1
+            qs = [{"question": f"Q{self.calls}-{i}?", "distractors": ["bad1", "bad2", "bad3"],
+                   "answer": "right", "topic": "Calvin" if i % 2 else "Glycolysis", "chunk": 1}
+                  for i in range(5)]
+            return json.dumps({"questions": qs})
+
+    monkeypatch.setattr(llm, "get_provider", lambda *a, **k: McqLLM())
+
+    class Up:
+        name = "bio.pdf"
+        def getvalue(self): return make_pdf_bytes([f"Glycolysis fact {i}." for i in range(60)])
+    monkeypatch.setattr(st, "file_uploader", lambda *a, **k: [Up()])
+
+    at = AppTest.from_file(str(Path(__file__).resolve().parent.parent / "app" / "ui.py"), default_timeout=60)
+    at.run()
+    next(r for r in at.radio if r.label == "Question type").set_value("Multiple choice")
+    next(b for b in at.button if b.label == "Create Quiz").click().run()
+    assert not at.exception and not at.error, (at.exception, [e.value for e in at.error])
+
+    qa = at.session_state["qa_pairs"]
+    assert len(qa) == 10 and all(q["type"] == "mcq" for q in qa)
+    assert all(q["source"] == "bio.pdf" and q["page"] == 1 for q in qa)   # citations flowed through
+
+    # answer: first 3 correctly, rest deliberately wrong
+    quiz_radios = [r for r in at.radio if r.label == "Choose one"]
+    assert len(quiz_radios) == 10
+    for i, r in enumerate(quiz_radios):
+        r.set_value(qa[i]["answer"] if i < 3 else next(o for o in qa[i]["options"] if o != qa[i]["answer"]))
+    next(b for b in at.button if "grade me" in b.label).click().run()
+    assert not at.exception, at.exception
+    graded = at.session_state["graded"]
+    assert [g["score"] for g in graded] == [1.0] * 3 + [0.0] * 7
+
+    # weak-topic practice builds a new quiz focused on the weak topics
+    seen_prompts.clear()
+    old_quiz = at.session_state["quiz_id"]
+    next(b for b in at.button if "Practice my weak topics" in b.label).click().run()
+    assert not at.exception and not at.error, (at.exception, [e.value for e in at.error])
+    assert at.session_state["quiz_id"] != old_quiz
+    assert "graded" not in at.session_state
+    assert any("Glycolysis" in p and "Calvin" in p for p in seen_prompts)
+    assert len([r for r in at.radio if r.label == "Choose one"]) == 10

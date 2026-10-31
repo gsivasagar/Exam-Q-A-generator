@@ -29,7 +29,7 @@ def test_empty_text_gives_no_chunks():
 
 def test_load_pdf_from_bytes():
     chunks = load_pdf(io.BytesIO(make_pdf_bytes(["Cells are the unit of life."] * 30)))
-    assert chunks and "Cells" in chunks[0]
+    assert chunks and "Cells" in chunks[0].text and chunks[0].page == 1
 
 
 def test_pdf_without_text_raises():
@@ -37,3 +37,17 @@ def test_pdf_without_text_raises():
     pdf = FPDF(); pdf.add_page()
     with pytest.raises(EmptyPDFError):
         load_pdf(io.BytesIO(bytes(pdf.output())))
+
+
+def test_chunks_carry_page_numbers_and_never_span_pages():
+    from fpdf import FPDF
+    pdf = FPDF()
+    for marker in ("ALPHA", "BETA", "GAMMA"):
+        pdf.add_page(); pdf.set_font("Helvetica", size=11)
+        pdf.multi_cell(0, 6, " ".join(f"{marker} fact number {i}." for i in range(20)))
+    chunks = load_pdf(io.BytesIO(bytes(pdf.output())))
+    assert sorted({c.page for c in chunks}) == [1, 2, 3]
+    for c in chunks:
+        marker = {1: "ALPHA", 2: "BETA", 3: "GAMMA"}[c.page]
+        assert marker in c.text
+        assert not any(m in c.text for m in {"ALPHA", "BETA", "GAMMA"} - {marker})

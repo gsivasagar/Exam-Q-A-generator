@@ -3,9 +3,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import BinaryIO, List, Union
+from typing import BinaryIO, List, NamedTuple, Union
 
 from pypdf import PdfReader
+
+
+class Chunk(NamedTuple):
+    text: str
+    page: int  # 1-based page number the chunk came from
 
 
 class EmptyPDFError(ValueError):
@@ -47,14 +52,17 @@ def chunk_text(text: str, chunk_size: int = 300, overlap: int = 50) -> List[str]
     return chunks
 
 
-def load_pdf(source: Union[str, Path, BinaryIO], *, chunk_size: int = 300, overlap: int = 50) -> List[str]:
-    """Read a PDF (path or file-like) and return text chunks.
+def load_pdf(source: Union[str, Path, BinaryIO], *, chunk_size: int = 300, overlap: int = 50) -> List[Chunk]:
+    """Read a PDF (path or file-like) and return page-tagged text chunks.
 
+    Chunks never span pages, so every chunk can be cited as "file, p.N".
     Raises EmptyPDFError if no text could be extracted.
     """
     reader = PdfReader(source if hasattr(source, "read") else str(source))
-    text = " ".join(page.extract_text() or "" for page in reader.pages)
-    chunks = chunk_text(text, chunk_size, overlap)
+    chunks: List[Chunk] = []
+    for page_no, page in enumerate(reader.pages, 1):
+        for text in chunk_text(page.extract_text() or "", chunk_size, overlap):
+            chunks.append(Chunk(text, page_no))
     if not chunks:
         raise EmptyPDFError(
             "No text found in this PDF. It may be a scanned document without a text layer."

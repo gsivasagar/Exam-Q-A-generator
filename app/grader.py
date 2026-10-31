@@ -64,3 +64,21 @@ def grade(reference: str, student: str, llm: LLMProvider, question: Optional[str
     except (LLMError, ValueError) as exc:
         log.warning("Grading failed: %s", exc)
         return {"score": None, "feedback": "Could not grade this answer automatically.", "error": True}
+
+
+def grade_mcq(qa: Dict, student: str) -> Dict:
+    """Deterministic grading for multiple-choice: no LLM call needed."""
+    if not student:
+        return {"score": 0.0, "feedback": "No answer selected."}
+    if student.strip().lower() == qa["answer"].strip().lower():
+        return {"score": 1.0, "feedback": "Correct!"}
+    return {"score": 0.0, "feedback": f"Incorrect. The correct answer is: {qa['answer']}"}
+
+
+def grade_question(qa: Dict, student: str, llm: LLMProvider) -> Dict:
+    """Grade one answer, dispatching on question type."""
+    if qa.get("type") == "mcq":
+        return grade_mcq(qa, student)
+    if not student.strip():
+        return {"score": 0.0, "feedback": "No answer submitted."}
+    return grade(qa["answer"], student, llm, question=qa["question"])

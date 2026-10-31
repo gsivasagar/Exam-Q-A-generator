@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import hashlib
 from functools import lru_cache
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from . import config
+from .pdf_loader import Chunk
+
+Hit = Dict  # {"text", "source", "page"}
 
 
 @lru_cache(maxsize=1)
@@ -24,29 +27,36 @@ def file_hash(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()[:16]
 
 
-def add_chunks(chunks: List[str], doc_id: str, source: str, file_id: str) -> int:
+def add_chunks(chunks: List[Chunk], doc_id: str, source: str, file_id: str) -> int:
     """Store chunks. IDs include file_id so multiple PDFs never collide; re-adding
     the same file is idempotent (upsert)."""
     if not chunks:
         return 0
     _collection().upsert(
-        documents=chunks,
+        documents=[c.text for c in chunks],
         ids=[f"{doc_id}-{file_id}-{i}" for i in range(len(chunks))],
-        metadatas=[{"doc_id": doc_id, "source": source, "file_id": file_id, "chunk": i}
-                   for i in range(len(chunks))],
+        metadatas=[{"doc_id": doc_id, "source": source, "file_id": file_id,
+                    "chunk": i, "page": c.page} for i, c in enumerate(chunks)],
     )
     return len(chunks)
 
 
-def similarity_search(query: str, k: int = 5, doc_id: Optional[str] = None) -> List[str]:
+def _hits(docs, metas) -> List[Hit]:
+    return [{"text": d, "source": (m or {}).get("source", ""), "page": (m or {}).get("page")}
+            for d, m in zip(docs, metas)]
+
+
+def similarity_search(query: str, k: int = 5, doc_id: Optional[str] = None) -> List[Hit]:
     kwargs = {"where": {"doc_id": doc_id}} if doc_id else {}
-    col = _collection()
-    results = col.query(query_texts=[query], n_results=k, **kwargs)
-    return results["documents"][0] if results["documents"] else []
+    res = _collection().query(query_texts=[query], n_results=k, **kwargs)
+    if not res["documents"]:
+        return []
+    return _hits(res["documents"][0], res["metadatas"][0])
 
 
-def get_all_chunks(doc_id: str) -> List[str]:
-    return _collection().get(where={"doc_id": doc_id})["documents"]
+def get_all_chunks(doc_id: str) -> List[Hit]:
+    res = _collection().get(where={"doc_id": doc_id})
+    return _hits(res["documents"], res["metadatas"])
 
 
 def delete_doc(doc_id: str) -> None:

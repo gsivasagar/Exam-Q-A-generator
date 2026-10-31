@@ -9,7 +9,7 @@ def test_two_pdfs_same_session_do_not_collide(store):
     nb = ingest_pdf(None, "s", filename="b.pdf", data=b)
     chunks = store.get_all_chunks("s")
     assert len(chunks) == na + nb
-    assert any("Alpha" in c for c in chunks) and any("Beta" in c for c in chunks)
+    assert any("Alpha" in c["text"] for c in chunks) and any("Beta" in c["text"] for c in chunks)
 
 
 def test_reingest_same_file_is_idempotent(store, pdf_bytes):
@@ -22,7 +22,7 @@ def test_documents_are_isolated_and_deletable(store, pdf_bytes):
     other = make_pdf_bytes([f"Completely different text {i}." for i in range(80)])
     ingest_pdf(None, "one", filename="a.pdf", data=pdf_bytes)
     ingest_pdf(None, "two", filename="b.pdf", data=other)
-    assert not any("Mitochondria" in c for c in store.get_all_chunks("two"))
+    assert not any("Mitochondria" in c["text"] for c in store.get_all_chunks("two"))
     store.delete_doc("one")
     assert store.get_all_chunks("one") == []
     assert store.get_all_chunks("two")
@@ -32,3 +32,11 @@ def test_similarity_search_scoped(store, pdf_bytes):
     ingest_pdf(None, "one", filename="a.pdf", data=pdf_bytes)
     assert store.similarity_search("mitochondria energy", k=3, doc_id="one")
     assert store.similarity_search("mitochondria energy", k=3, doc_id="nope") == []
+
+
+def test_hits_carry_source_and_page(store, pdf_bytes):
+    ingest_pdf(None, "one", filename="bio.pdf", data=pdf_bytes)
+    h = store.get_all_chunks("one")[0]
+    assert h["source"] == "bio.pdf" and h["page"] == 1
+    h = store.similarity_search("mitochondria", k=1, doc_id="one")[0]
+    assert h["source"] == "bio.pdf" and h["page"] == 1

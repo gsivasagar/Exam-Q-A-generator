@@ -28,7 +28,9 @@ def build_pdf(results: List[Dict]) -> bytes:
         score_txt = "not graded" if score is None else f"{score:.0%}"
         for line in (f"Q{idx}: {g.get('question')}", f"Your Score: {score_txt}",
                      f"Your Answer: {g.get('student')}", f"Correct Answer: {g.get('answer')}",
-                     f"Feedback: {g.get('feedback')}"):
+                     f"Feedback: {g.get('feedback')}",
+                     *( [f"Source: {g['source']}" + (f", p.{g['page']}" if g.get('page') else "")]
+                        if g.get("source") else [] )):
             pdf.multi_cell(0, 8, _safe(line), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(4)
     return bytes(pdf.output())
