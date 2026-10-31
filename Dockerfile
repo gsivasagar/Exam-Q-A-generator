@@ -21,6 +21,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the current directory contents into the container at /app
 COPY . .
 
+# Make the `app` package importable for `streamlit run app/ui.py`
+ENV PYTHONPATH=/app
+
 # Expose port 8501 for Streamlit
 EXPOSE 8501
 

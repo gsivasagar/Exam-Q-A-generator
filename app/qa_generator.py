@@ -91,7 +91,9 @@ def extract_json_array(text: str) -> list:
 
 def _match_option(answer: str, options: List[str]) -> Optional[str]:
     """Return the option the answer refers to (by text, or by letter 'B' / 'B)')."""
-    norm = lambda s: re.sub(r"\s+", " ", s).strip().lower()
+    def norm(s: str) -> str:
+        return re.sub(r"\s+", " ", s).strip().lower()
+
     for o in options:
         if norm(o) == norm(answer):
             return o

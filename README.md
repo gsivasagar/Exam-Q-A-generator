@@ -5,9 +5,14 @@ An interactive tool that generates educational quizzes from your study PDF notes
 ## ✨ Features
 *   **PDF Ingestion**: Upload your study materials directly.
 *   **AI Question Generation**: Automatically creates quiz questions based on your content.
+*   **Question Types**: Short answer, multiple choice, or a mix of both.
+*   **Two LLM Providers**: Local Ollama (default) or Google Gemini (API key required; document text is sent to Google).
 *   **Interactive Quiz**: Take the quiz directly in your browser.
-*   **Auto-Grading**: Get instant feedback and scoring on your answers.
-*   **Performance Tracking**: Track your progress over time.
+*   **Auto-Grading**: Multiple choice is graded instantly; short answers are graded by the LLM.
+*   **Source Citations**: Each question shows the file and page it came from.
+*   **Weak-Topic Practice**: Regenerate a quiz focused on the topics you missed.
+*   **Performance Tracking**: Charts of your scores over time and by topic.
+*   **PDF Export**: Download a summary of your results.
 
 ## 🚀 Quick Start (Docker)
 
@@ -39,11 +44,11 @@ If you prefer running without Docker:
     python -m venv .venv
     source .venv/bin/activate  # On Windows: .venv\Scripts\activate
     ```
-2.  **Install Dependencies**:
+2.  **Install the project** (this also makes the `app` package importable):
     ```bash
-    pip install -r requirements.txt
+    pip install -e .
     ```
-3.  **Run the App**:
+3.  **Run the App** (from the repository root):
     ```bash
     streamlit run app/ui.py
     ```
@@ -54,7 +59,9 @@ If you prefer running without Docker:
 
 ## 🧪 Development
 ```bash
-pip install -r requirements-dev.txt
+pip install -e . -r requirements-dev.txt
 pytest
+ruff check app tests        # lint (pip install ruff, or: uvx ruff check app tests)
 ```
+Optional: `pre-commit install` runs ruff before every commit.
 Tests use a fake LLM and a real temporary Chroma store, so no Ollama is needed.

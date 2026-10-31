@@ -34,7 +34,8 @@ def test_load_pdf_from_bytes():
 
 def test_pdf_without_text_raises():
     from fpdf import FPDF
-    pdf = FPDF(); pdf.add_page()
+    pdf = FPDF()
+    pdf.add_page()
     with pytest.raises(EmptyPDFError):
         load_pdf(io.BytesIO(bytes(pdf.output())))
 
@@ -43,7 +44,8 @@ def test_chunks_carry_page_numbers_and_never_span_pages():
     from fpdf import FPDF
     pdf = FPDF()
     for marker in ("ALPHA", "BETA", "GAMMA"):
-        pdf.add_page(); pdf.set_font("Helvetica", size=11)
+        pdf.add_page()
+        pdf.set_font("Helvetica", size=11)
         pdf.multi_cell(0, 6, " ".join(f"{marker} fact number {i}." for i in range(20)))
     chunks = load_pdf(io.BytesIO(bytes(pdf.output())))
     assert sorted({c.page for c in chunks}) == [1, 2, 3]

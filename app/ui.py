@@ -1,9 +1,6 @@
 # app/ui.py
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent))  # make "app" importable
-
+# Run from the repo root with the package importable: `pip install -e .` (or PYTHONPATH=.),
+# then `streamlit run app/ui.py`.
 import logging
 import uuid
 
