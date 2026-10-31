@@ -7,8 +7,8 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      # Map the current directory to /app for live reloading and persistence
-      - .:/app
+      # Persist only app data (vector store + results DB), not the whole repo
+      - ./data:/app/data
     environment:
       # Connect to host's Ollama instance
       # For Linux, you might need to use --network="host" or the host's actual IP

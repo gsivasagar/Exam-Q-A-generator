@@ -1,8 +1,11 @@
-from typing import List, Dict
 from collections import Counter
+from typing import Dict, List
 
-def recommend(graded: List[Dict]) -> List[str]:
-    """Return top 3 topics where the user scored <0.6."""
-    weak = [item["topic"] for item in graded if item["score"] < 0.6]
-    counts = Counter(weak)
-    return [t for t, _ in counts.most_common(3)]
+from . import config
+
+
+def recommend(graded: List[Dict], limit: int = 3) -> List[str]:
+    """Return up to `limit` topics where the student scored below the pass mark."""
+    weak = [g.get("topic", "General") for g in graded
+            if g.get("score") is not None and g["score"] < config.PASS_THRESHOLD]
+    return [t for t, _ in Counter(weak).most_common(limit)]
