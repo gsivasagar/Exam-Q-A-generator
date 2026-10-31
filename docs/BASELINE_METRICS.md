@@ -137,3 +137,4 @@ retrieval or prompts, and record the model and date:
 | Phase | Date | Result vs. baseline |
 |---|---|---|
 | 0 Housekeeping | 2026-10-31 | Lint (E,F) 6 to 0. Tests 94 passed (unchanged). `sys.path` hack removed; `pyproject.toml` added (wheel builds); app starts and `/_stcore/health` returns ok |
+| 2 LLM-layer quick wins | 2026-10-31 | Tests 94 to 114. `llm.py` coverage 31% to 99%; total coverage 89% to 93%. Added: temperature, `num_ctx`, timeouts, retry with backoff on transient errors, Gemini `response_json_schema`, optional Gemini thinking budget (`GEMINI_THINKING_BUDGET`, off by default), per-call token/latency stats, prompt-injection delimiters, grading at temperature 0. **Not yet measured with a live model:** repeatability variance, valid-question rate |

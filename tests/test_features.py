@@ -94,7 +94,7 @@ class TestCitations:
         ingest_pdf(None, "c", filename="n.pdf", data=bytes(pdf.output()))
 
         class Cite(FakeLLM):
-            def generate(self, prompt, *, schema=None):
+            def generate(self, prompt, *, schema=None, **_):
                 # cite whichever passage mentions BETA
                 import re
                 n = int(re.search(r"\[(\d+)\] BETA", prompt).group(1)) if "] BETA" in prompt else 1
@@ -136,7 +136,7 @@ class TestGenerationModes:
 
     class Typed(FakeLLM):
         """Answers according to the schema it is asked for (mcq vs short)."""
-        def generate(self, prompt, *, schema=None):
+        def generate(self, prompt, *, schema=None, **_):
             self.calls += 1
             self.prompts.append(prompt)
             is_mcq = "distractors" in schema["properties"]["questions"]["items"]["properties"]
@@ -170,7 +170,7 @@ class TestGenerationModes:
     def test_mixed_survives_one_type_failing(self, store):
         self._ingest()
         class OnlyShort(self.Typed):
-            def generate(self, prompt, *, schema=None):
+            def generate(self, prompt, *, schema=None, **_):
                 if "distractors" in schema["properties"]["questions"]["items"]["properties"]:
                     self.calls += 1
                     return "garbage"

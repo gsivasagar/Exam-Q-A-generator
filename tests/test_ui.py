@@ -13,7 +13,7 @@ def app(store, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "q.db")
 
     class GradingLLM(FakeLLM):
-        def generate(self, prompt, *, schema=None):
+        def generate(self, prompt, *, schema=None, **_):
             if "Evaluate the student" in prompt:
                 return '{"score": 0.9, "feedback": "Well done"}'
             return super().generate(prompt, schema=schema)
@@ -61,7 +61,7 @@ def test_mcq_flow_and_weak_topic_practice(store, tmp_path, monkeypatch):
     seen_prompts = []
 
     class McqLLM(FakeLLM):
-        def generate(self, prompt, *, schema=None):
+        def generate(self, prompt, *, schema=None, **_):
             seen_prompts.append(prompt)
             self.calls += 1
             qs = [{"question": f"Q{self.calls}-{i}?", "distractors": ["bad1", "bad2", "bad3"],
