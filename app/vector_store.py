@@ -39,21 +39,58 @@ def add_chunks(chunks: List[Chunk], doc_id: str, source: str, file_id: str) -> i
     the same file is idempotent (upsert)."""
     if not chunks:
         return 0
+    parents = _parent_texts(chunks) if config.PARENT_EXPANSION else None
+    metadatas = []
+    for i, c in enumerate(chunks):
+        meta = {"doc_id": doc_id, "source": source, "file_id": file_id, "chunk": i, "page": c.page}
+        if c.heading:
+            meta["heading"] = c.heading
+        if c.page_end:
+            meta["page_end"] = c.page_end
+        if parents and parents[i] != c.text:
+            meta["parent"] = parents[i]
+        metadatas.append(meta)
     _collection().upsert(
         documents=[c.text for c in chunks],
         ids=[f"{doc_id}-{file_id}-{i}" for i in range(len(chunks))],
-        metadatas=[{"doc_id": doc_id, "source": source, "file_id": file_id,
-                    "chunk": i, "page": c.page} for i, c in enumerate(chunks)],
+        metadatas=metadatas,
     )
     return len(chunks)
 
 
-def _hits(docs, metas, embeddings=None) -> List[Hit]:
-    hits = [{"text": d, "source": (m or {}).get("source", ""), "page": (m or {}).get("page")}
-            for d, m in zip(docs, metas)]
-    if embeddings is not None:
-        for h, e in zip(hits, embeddings):
-            h["embedding"] = e
+def _parent_texts(chunks: List[Chunk], max_chars: int = 3600) -> List[str]:
+    """For small-to-big retrieval: each chunk plus its neighbours under the same heading (capped)."""
+    out = []
+    for i, c in enumerate(chunks):
+        parts = [c.text]
+        for j in (i - 1, i + 1):
+            if 0 <= j < len(chunks) and chunks[j].heading == c.heading and chunks[j].page - c.page in (-1, 0, 1):
+                parts.insert(0, chunks[j].text) if j < i else parts.append(chunks[j].text)
+        text = " ".join(parts)
+        out.append(text if len(text) <= max_chars else c.text)
+    return out
+
+
+def _hits(docs, metas, embeddings=None, expand: bool = False) -> List[Hit]:
+    """Turn Chroma results into hits. With `expand`, a chunk is replaced by its stored parent section
+    (de-duplicated), the "small-to-big" step: search on small chunks, show the model the larger context."""
+    hits, seen_parents = [], set()
+    for i, (d, m) in enumerate(zip(docs, metas)):
+        m = m or {}
+        text = d
+        if expand and m.get("parent"):
+            if m["parent"] in seen_parents:
+                continue
+            seen_parents.add(m["parent"])
+            text = m["parent"]
+        h = {"text": text, "source": m.get("source", ""), "page": m.get("page")}
+        if m.get("page_end"):
+            h["page_end"] = m["page_end"]
+        if m.get("heading"):
+            h["heading"] = m["heading"]
+        if embeddings is not None:
+            h["embedding"] = embeddings[i]
+        hits.append(h)
     return hits
 
 
@@ -64,7 +101,7 @@ def similarity_search(query: str, k: int = 5, doc_id: Optional[str] = None) -> L
     if not res["documents"]:
         return []
     embeddings = res["embeddings"][0] if res.get("embeddings") is not None else None
-    return _hits(res["documents"][0], res["metadatas"][0], embeddings)
+    return _hits(res["documents"][0], res["metadatas"][0], embeddings, expand=config.PARENT_EXPANSION)
 
 
 def get_all_chunks(doc_id: str) -> List[Hit]:

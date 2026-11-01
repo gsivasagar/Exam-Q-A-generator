@@ -70,3 +70,22 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
 - **Replaced `lru_cache` on `_collection()` with a cache keyed by (path, embedder).** Why: the old
   zero-argument cache silently reused a stale store if the directory or embedder changed (issue #3 from
   the review). `cache_clear` is re-exported so existing test fixtures keep working.
+
+## Phase 6: chunking
+- **Shipped behind `CHUNKING=structured`; default remains `legacy`.** Why: the plan's gate is "retrieval metrics
+  up or flat, citation correctness up". Neither is measurable without the Phase 1 harness and a model, so
+  switching the default now would be unverified. Flip it in `config.py` after Phase 1 shows it helps.
+- **Heading detection is heuristic** (numbered, "Chapter N", ALL CAPS, short Title Case). Why: PDF text has
+  no real structure and a layout-aware parser would add a heavy dependency. Known weakness: documents with
+  many Title Case lines (e.g. resumes) look like they have many headings.
+- **A heading only forces a new chunk once the current chunk reaches half the target size.** Why: the first
+  version split at every heading and produced 377 chunks with a median of 62 tokens on the sample PDFs
+  (one resume-like PDF alone gave 339 tiny chunks). Folding short sections together gave 163 chunks with a
+  floor of 82 tokens. Trade-off: a chunk is labelled with the heading it *starts* under and can contain a
+  following short section.
+- **Reported honestly that the median chunk (218 tokens) is not closer to the 400-token target than legacy
+  (282).** The improvement is the tighter range and no fragments, and that chunks now carry headings and can
+  cross pages.
+- **Parent expansion is off by default and applied only to topic searches.** Why: expanded parents are ~3x
+  larger and would crowd the 6,000-character prompt cap; the no-topic path already uses every chunk.
+- **Found and fixed a bug via tests:** `"1 2 3"` was classified as a Title Case heading (vacuous `all()`).
