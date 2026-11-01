@@ -1,4 +1,3 @@
-import io
 import json
 
 import pytest
@@ -13,7 +12,7 @@ class FakeLLM:
         self.prompts = []
         self.calls = 0
 
-    def generate(self, prompt, *, schema=None):
+    def generate(self, prompt, *, schema=None, **_):
         self.prompts.append(prompt)
         self.calls += 1
         if self.replies:

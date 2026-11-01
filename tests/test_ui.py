@@ -13,7 +13,7 @@ def app(store, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "q.db")
 
     class GradingLLM(FakeLLM):
-        def generate(self, prompt, *, schema=None):
+        def generate(self, prompt, *, schema=None, **_):
             if "Evaluate the student" in prompt:
                 return '{"score": 0.9, "feedback": "Well done"}'
             return super().generate(prompt, schema=schema)
@@ -61,7 +61,7 @@ def test_mcq_flow_and_weak_topic_practice(store, tmp_path, monkeypatch):
     seen_prompts = []
 
     class McqLLM(FakeLLM):
-        def generate(self, prompt, *, schema=None):
+        def generate(self, prompt, *, schema=None, **_):
             seen_prompts.append(prompt)
             self.calls += 1
             qs = [{"question": f"Q{self.calls}-{i}?", "distractors": ["bad1", "bad2", "bad3"],
@@ -105,3 +105,41 @@ def test_mcq_flow_and_weak_topic_practice(store, tmp_path, monkeypatch):
     assert "graded" not in at.session_state
     assert any("Glycolysis" in p and "Calvin" in p for p in seen_prompts)
     assert len([r for r in at.radio if r.label == "Choose one"]) == 10
+
+
+def test_retry_ungraded_answers(store, tmp_path, monkeypatch):
+    import streamlit as st
+    from app import config, llm
+    from app.llm import LLMError
+
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "q.db")
+    state = {"fail": True}
+
+    class FlakyGrader(FakeLLM):
+        def generate(self, prompt, *, schema=None, **_):
+            if "Evaluate the student" in prompt:
+                if state["fail"]:
+                    raise LLMError("grader down")
+                return '{"score": 0.8, "feedback": "Recovered"}'
+            return super().generate(prompt, schema=schema)
+
+    class Up:
+        name = "notes.pdf"
+        def getvalue(self): return make_pdf_bytes([f"Cells divide by mitosis {i}." for i in range(60)])
+
+    monkeypatch.setattr(st, "file_uploader", lambda *a, **k: [Up()])
+    monkeypatch.setattr(llm, "get_provider", lambda *a, **k: FlakyGrader())
+    at = AppTest.from_file(str(Path(__file__).resolve().parent.parent / "app" / "ui.py"), default_timeout=60)
+    at.run()
+    next(b for b in at.button if b.label == "Create Quiz").click().run()
+    for ta in at.text_area:
+        ta.input("a real attempt at the answer")
+    next(b for b in at.button if "grade me" in b.label).click().run()
+    assert not at.exception, at.exception
+    assert all(g["score"] is None for g in at.session_state["graded"])
+
+    state["fail"] = False
+    next(b for b in at.button if "Retry ungraded" in b.label).click().run()
+    assert not at.exception, at.exception
+    assert all(g["score"] == 0.8 and not g.get("error") for g in at.session_state["graded"])
+    assert not any("Retry ungraded" in b.label for b in at.button)  # nothing left to retry

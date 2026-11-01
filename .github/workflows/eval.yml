@@ -1,0 +1,41 @@
+name: evaluation
+
+# Weekly quality check that needs no language model: retrieval benchmark, grading stand-in and chunk
+# selection. Results are uploaded as an artifact; the job fails if quality drops below eval/thresholds.
+# Run the generation/grading scripts with a real model locally (see eval/README.md).
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/chroma
+          key: chroma-onnx-${{ runner.os }}
+      - run: pip install -e .
+      - run: python scripts/eval_retrieval.py --out eval/results/ci-retrieval.json
+      - run: python scripts/eval_grading.py --provider stub --out eval/results/ci-grading.json
+      - run: >
+          python scripts/eval_generation.py --provider stub --runs 40 --types short --scope all
+          --out eval/results/ci-selection.json
+      - run: >
+          python scripts/check_eval.py --retrieval eval/results/ci-retrieval.json
+          --grading eval/results/ci-grading.json --selection eval/results/ci-selection.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-results
+          path: eval/results/ci-*.json

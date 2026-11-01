@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "exam-qa-generator"
+version = "0.1.0"
+description = "Generate and grade exam quizzes from study PDFs with local or hosted LLMs."
+readme = "README.md"
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+# Optional local ONNX embedding models and rerankers (EMBEDDING_MODEL=fastembed:..., RERANKER=fastembed:...)
+fastembed = ["fastembed>=0.3"]
+# Optional OCR for scanned PDFs (also needs the Tesseract program)
+ocr = ["pypdfium2", "pytesseract"]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mypy]
+files = ["app"]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 92
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = [".venv", "tmp", "chroma_store", ".chromadb", "chroma_data", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# Throwaway measurement scripts: keep app/ and tests/ strict, allow terse style here.
+"scripts/*" = ["E401", "E402", "E701", "E702", "E501"]

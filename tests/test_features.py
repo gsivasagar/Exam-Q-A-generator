@@ -88,12 +88,13 @@ class TestCitations:
         from fpdf import FPDF
         pdf = FPDF()
         for marker in ("ALPHA", "BETA"):
-            pdf.add_page(); pdf.set_font("Helvetica", size=11)
+            pdf.add_page()
+            pdf.set_font("Helvetica", size=11)
             pdf.multi_cell(0, 6, " ".join(f"{marker} fact {i}." for i in range(20)))
         ingest_pdf(None, "c", filename="n.pdf", data=bytes(pdf.output()))
 
         class Cite(FakeLLM):
-            def generate(self, prompt, *, schema=None):
+            def generate(self, prompt, *, schema=None, **_):
                 # cite whichever passage mentions BETA
                 import re
                 n = int(re.search(r"\[(\d+)\] BETA", prompt).group(1)) if "] BETA" in prompt else 1
@@ -135,8 +136,9 @@ class TestGenerationModes:
 
     class Typed(FakeLLM):
         """Answers according to the schema it is asked for (mcq vs short)."""
-        def generate(self, prompt, *, schema=None):
-            self.calls += 1; self.prompts.append(prompt)
+        def generate(self, prompt, *, schema=None, **_):
+            self.calls += 1
+            self.prompts.append(prompt)
             is_mcq = "distractors" in schema["properties"]["questions"]["items"]["properties"]
             qs = []
             for i in range(5):
@@ -168,7 +170,7 @@ class TestGenerationModes:
     def test_mixed_survives_one_type_failing(self, store):
         self._ingest()
         class OnlyShort(self.Typed):
-            def generate(self, prompt, *, schema=None):
+            def generate(self, prompt, *, schema=None, **_):
                 if "distractors" in schema["properties"]["questions"]["items"]["properties"]:
                     self.calls += 1
                     return "garbage"

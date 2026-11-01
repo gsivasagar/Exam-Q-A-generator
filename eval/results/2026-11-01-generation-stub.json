@@ -1,0 +1,52 @@
+{
+ "date": "2026-11-01",
+ "provider": "stub",
+ "model": null,
+ "config": {
+  "provider": "stub",
+  "model": null,
+  "runs": 3,
+  "n": 8,
+  "types": "short,mcq",
+  "selection": "coverage",
+  "routing": "on",
+  "verify": false,
+  "scope": "both",
+  "seed": 0,
+  "out": "eval/results/2026-11-01-generation-stub.json"
+ },
+ "metrics": {
+  "valid_rate": 1.0,
+  "parse_fail_rate": 0.0,
+  "item_validity": 1.0,
+  "grounded_rate": 1.0,
+  "section_coverage": 0.65625,
+  "doc_coverage": 0.8333333333333334,
+  "context_doc_coverage": 0.8958333333333334,
+  "context_similarity": 0.0962766431615239,
+  "duplicate_rate": 1.0,
+  "llm_calls_per_quiz": 2.0,
+  "seconds_per_quiz": 0.0031396640553322396,
+  "quizzes": 54,
+  "failed_quizzes": 0
+ },
+ "errors": [],
+ "raw": {
+  "context_doc_coverage": [
+   0.875,
+   0.875,
+   0.875,
+   0.875,
+   1.0,
+   0.875
+  ],
+  "context_similarity": [
+   0.09196954107976728,
+   0.10298162932335747,
+   0.1007554405169944,
+   0.09558711247358347,
+   0.1030157304361906,
+   0.08335040513925024
+  ]
+ }
+}

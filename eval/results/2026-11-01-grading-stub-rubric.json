@@ -1,0 +1,40 @@
+{
+ "date": "2026-11-01",
+ "provider": "stub",
+ "model": null,
+ "mode": "rubric",
+ "metrics": {
+  "n_items": 33,
+  "repeats": 3,
+  "precheck_settled": 3,
+  "precheck_agree": 3,
+  "agreement": 0.6363636363636364,
+  "mean_abs_error": 0.20707070707070707,
+  "ungraded_rate": 0.0,
+  "repeatability_std": 0.0,
+  "mean_score_correct": 0.803030303030303,
+  "mean_score_partial": 0.13333333333333333,
+  "mean_score_wrong": 0.08333333333333333,
+  "llm_calls_per_pass": 30.0
+ },
+ "confusion": {
+  "correct": {
+   "correct": 7,
+   "partial": 4,
+   "wrong": 0,
+   "ungraded": 0
+  },
+  "partial": {
+   "correct": 0,
+   "partial": 3,
+   "wrong": 7,
+   "ungraded": 0
+  },
+  "wrong": {
+   "correct": 1,
+   "partial": 0,
+   "wrong": 11,
+   "ungraded": 0
+  }
+ }
+}
