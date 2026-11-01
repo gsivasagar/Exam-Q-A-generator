@@ -68,4 +68,8 @@ VERIFY_QUESTIONS = os.getenv("VERIFY_QUESTIONS", "off").strip().lower() in {"1",
 SEMANTIC_DEDUPE = os.getenv("SEMANTIC_DEDUPE", "off").strip().lower() in {"1", "true", "yes", "on"}
 SEMANTIC_DEDUPE_THRESHOLD = float(os.getenv("SEMANTIC_DEDUPE_THRESHOLD", "0.85"))
 
+# Grading: "rubric" scores short answers by key points covered (when the question has them; computed in
+# code), "holistic" asks the model for a 0-1 score directly.
+GRADING_MODE = os.getenv("GRADING_MODE", "rubric").strip().lower()
+
 PASS_THRESHOLD = 0.6

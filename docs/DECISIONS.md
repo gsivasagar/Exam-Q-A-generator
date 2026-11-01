@@ -166,3 +166,22 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
   (path, embedder) at process level, which survives Streamlit reruns, so a second cache layer would add nothing.
 - **Latency numbers are simulated.** I state this in the metrics log; they show the mechanism works, not what
   a real model will deliver.
+
+## Phase 11: grading
+- **Rubric scoring: the model only says which key points are covered; the score is computed in code.** Why:
+  models are poor at calibrated numbers but decent at yes/no per point. Scores become explainable (a checklist)
+  and repeatable by construction (discrete values), which is the plan's goal.
+- **Rubric applies to short questions only, and only when 2+ key points exist; otherwise the old holistic
+  grader runs.** Why: weaker local models may omit `key_points` (the field is optional in the schema), and
+  cloze answers are single terms. Fallback means no question is ever ungradable because of this feature.
+- **A malformed rubric reply becomes "ungraded" (score None) rather than silently falling back to holistic.**
+  Why: a fallback would double the cost on a flaky model and hide the failure; the new "Retry ungraded"
+  button handles recovery.
+- **Pre-checks are conservative.** Blank and a short list of "no attempt" phrases score 0; a normalised exact
+  match or >= 95% similarity scores 1. Anything else goes to the model. Why: a wrong shortcut would mislead
+  students; the 0.95 threshold was chosen to forgive punctuation/case only. Trade-off: a student who copies the
+  reference answer gets full marks (same as before, but no longer costs a call).
+- **Exact-match test updated:** an existing test expected one LLM call for an answer identical to the reference;
+  the pre-check now (intentionally) skips the call, so the test uses a near-miss answer instead.
+- **Retry stores only the newly graded answers.** Why: the originals were never saved (ungradable answers are
+  skipped by `store_results`), so storing the recovered ones avoids duplicates.

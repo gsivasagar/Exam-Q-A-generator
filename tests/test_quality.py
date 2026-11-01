@@ -68,7 +68,7 @@ class TestGrading:
     def test_cloze_graded_by_llm_like_short(self):
         qa = {"type": "cloze", "answer": "mitochondria", "question": "The ___ makes ATP."}
         llm = FakeLLM(['{"score": 1, "feedback": "ok"}'])
-        assert grade_question(qa, "mitochondria", llm)["score"] == 1.0 and llm.calls == 1
+        assert grade_question(qa, "mitochondrion", llm)["score"] == 1.0 and llm.calls == 1
 
 
 def pairs_with_chunks():

@@ -9,7 +9,7 @@ from .validation import N_OPTIONS
 MAX_CONTEXT_CHARS = 6000
 
 _SHORT_FORMAT = ('{"questions": [{"question": "What is ...?", "answer": "...", '
-                 '"topic": "ShortTopicName", "chunk": 1}]}')
+                 '"key_points": ["point 1", "point 2"], "topic": "ShortTopicName", "chunk": 1}]}')
 _MCQ_FORMAT = ('{"questions": [{"question": "Which ...?", "answer": "the correct answer", '
                '"distractors": ["wrong 1", "wrong 2", "wrong 3"], "topic": "ShortTopicName", "chunk": 1}]}')
 
@@ -28,6 +28,8 @@ _TF_EXTRA = ('- Write each question as one self-contained statement. "answer" is
              "Make about half of the statements false by changing one key fact.\n")
 _CLOZE_EXTRA = ('- "question" is one sentence from the passages with ONE key term replaced by ___ . '
                 '"answer" is the missing term only.\n')
+_KEYPOINTS_EXTRA = ('- Add "key_points": 2 to 4 short phrases that a correct answer must contain '
+                    "(used to grade the student's answer).\n")
 _EXPLAIN_EXTRA = '- Add "explanation": one short sentence saying why the answer is right, based on the passage.\n'
 
 _PROMPT = """You are a professional exam tutor. Based ONLY on the numbered context passages \
@@ -48,6 +50,8 @@ _MCQ_EXTRA = (f"- \"answer\" is the single correct answer. \"distractors\" are e
 def schema_for(qtype: str) -> dict:
     props = {"question": {"type": "string"}, "answer": {"type": "string"},
              "topic": {"type": "string"}, "chunk": {"type": "integer"}, "explanation": {"type": "string"}}
+    if qtype == "short":
+        props["key_points"] = {"type": "array", "items": {"type": "string"}}
     required = ["question", "answer", "topic", "chunk"]
     if qtype == "mcq":
         props["distractors"] = {"type": "array", "items": {"type": "string"}}
@@ -78,5 +82,7 @@ def build_prompt(hits: List[dict], n: int, topic: Optional[str], qtype: str,
         instruction += "\n" + _DIFFICULTY_TEXT[difficulty]
     fmt, extra = {"mcq": (_MCQ_FORMAT, _MCQ_EXTRA), "tf": (_TF_FORMAT, _TF_EXTRA),
                   "cloze": (_CLOZE_FORMAT, _CLOZE_EXTRA)}.get(qtype, (_SHORT_FORMAT, ""))
+    if qtype == "short":
+        extra += _KEYPOINTS_EXTRA
     system = _PROMPT.format(fmt=fmt, extra=extra + _EXPLAIN_EXTRA)
     return f"{system}\n{instruction}\n\n<context>\n{build_context(hits, max_chars)}</context>"

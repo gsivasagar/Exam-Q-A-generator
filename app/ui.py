@@ -10,7 +10,7 @@ import streamlit as st
 from app import config
 from app.database import load_results, store_results
 from app.concurrency import effective_workers
-from app.grader import grade_all
+from app.grader import grade_all, regrade_failed
 from app.llm import LLMError, get_provider
 from app.pdf_loader import EmptyPDFError
 from app.qa_generator import generate_qa_pairs, ingest_pdf
@@ -153,11 +153,30 @@ if "graded" in st.session_state:
         st.markdown(f"**Feedback:** {g['feedback']}")
         with st.expander("Correct answer"):
             st.markdown(g["answer"])
+            if g.get("key_points") and g.get("covered") and len(g["covered"]) == len(g["key_points"]):
+                st.markdown("**Key points**")
+                for point, ok in zip(g["key_points"], g["covered"]):
+                    st.markdown(f"{'✅' if ok else '❌'} {point}")
+            elif g.get("key_points"):
+                st.markdown("**Key points**\n" + "\n".join(f"- {p}" for p in g["key_points"]))
             if g.get("explanation"):
                 st.markdown(f"*{g['explanation']}*")
             if g.get("source"):
                 st.caption(f"📖 Source: {g['source']}" + (f", p.{g['page']}" if g.get("page") else ""))
         st.divider()
+
+    if any(g.get("error") for g in graded) and st.button("🔁 Retry ungraded answers"):
+        try:
+            llm = make_llm()
+            before = list(graded)
+            graded = regrade_failed(graded, llm, workers=effective_workers(llm))
+            newly = [g for g, old in zip(graded, before) if old.get("error") and not g.get("error")]
+            if newly:
+                store_results(newly, st.session_state.session_id, st.session_state.quiz_id)
+            st.session_state.graded = graded
+            st.rerun()
+        except LLMError as exc:
+            st.error(str(exc))
 
     st.write("### Recommended Topics to Review")
     topics = recommend(graded)

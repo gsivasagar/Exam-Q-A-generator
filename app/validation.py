@@ -105,6 +105,11 @@ def validate_pairs(items: list, hits: Optional[Sequence[dict]] = None, qtype: st
         expl = str(it.get("explanation") or "").strip()
         if expl:
             pair["explanation"] = expl
+        kps = it.get("key_points")
+        if qtype == "short" and isinstance(kps, list):
+            points = distinct(kps)[:4]
+            if len(points) >= 2:
+                pair["key_points"] = points
         if qtype == "tf":
             tf = TF_ANSWERS.get(a.strip().lower().rstrip("."))
             if tf is None:

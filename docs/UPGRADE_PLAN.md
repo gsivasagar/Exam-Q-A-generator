@@ -364,7 +364,7 @@ measurements to prove it.
 - [x] 8 Adaptive router
 - [x] 9 Verifier, difficulty, explanations (offline-tested; effect on real question quality needs a live model)
 - [x] 10 Concurrency, caching, progress
-- [ ] 11 Grading upgrade
+- [x] 11 Grading upgrade (agreement/repeatability need a live model and the calibration set from Phase 1)
 - [ ] 12 Ingestion formats and OCR
 - [ ] 13 Persistence and product features
 - [ ] 14 DevOps and hardening
