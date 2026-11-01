@@ -53,6 +53,13 @@ If you prefer running without Docker:
     streamlit run app/ui.py
     ```
 
+## 🗂 Saving and studying
+*   **Profile name** (sidebar): type one to keep your quizzes and progress between visits. It is a label, not a password.
+*   **My quizzes**: every quiz is saved; retake or delete it from the sidebar.
+*   **Review due questions**: a simple spaced-repetition schedule (1, 3, then growing days) brings missed questions back.
+*   **Export**: printable exam PDF (with or without answer key), Anki import file, CSV.
+*   **My data**: deletes your saved quizzes, results and review schedule. Uploaded documents are forgotten from the vector store after `DOC_TTL_DAYS` (default 7).
+
 ## 📄 Supported inputs
 PDF, Word (`.docx`), PowerPoint (`.pptx`), Markdown, plain text, or a web page address. Limits: `MAX_UPLOAD_MB` (25) and `MAX_PDF_PAGES` (300). Web addresses must be public (private/local network addresses are refused). Scanned PDFs need the optional OCR packages: `pip install pypdfium2 pytesseract` plus the Tesseract program (`brew install tesseract` or `apt install tesseract-ocr`); set `OCR_MODE=off` to disable.
 

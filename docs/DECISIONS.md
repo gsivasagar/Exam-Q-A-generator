@@ -211,3 +211,31 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
   garbage. UTF-16 is now tried only when a byte-order mark is present.
 - **Added `fonttools` to requirements.** Why: pypdf warns it is needed to fully decode some font encodings; a
   clean Docker install would not have it. Output on the sample PDFs was identical either way.
+
+## Phase 13: persistence and product features
+- **No real accounts; an optional "profile name" instead.** Why: the plan said to defer accounts. Real
+  authentication (passwords, sessions, reset flows) is large and easy to get wrong. A profile name gives
+  history that survives a refresh at no security cost, but it is **not private**: anyone typing the same name
+  sees that history. It is labelled as a label, not a login, in the UI and README. Use real auth before
+  exposing the app to other people.
+- **Migrations tracked with SQLite's `PRAGMA user_version`, written as numbered steps.** Why: no extra
+  library, works for existing databases (a pre-versioning DB is treated as version 0 and upgraded in place;
+  tested with data), and each future schema change is one new `if version < N` block.
+- **Questions are stored as JSON blobs in `quizzes` / `srs`.** Why: question shape keeps evolving (key points,
+  explanations, new types); JSON avoids a migration per field. Trade-off: no SQL queries over question fields.
+- **Retaking reuses the quiz id, with a fresh `attempt_id` for the form widgets.** Why: results from every
+  attempt accumulate under one quiz (attempt count and average score), while new widget keys stop the old
+  answers from reappearing in the form.
+- **Spaced repetition is a simplified SM-2** (reps 1 and 2 -> 1 and 3 days, then interval x ease; a fail resets
+  to 1 day and lowers ease; ease bounded 1.3-2.8). Why: well known and tiny; graded by the existing 0.6 pass
+  mark. Cards are identified by a hash of question + answer, so regenerated identical questions share a card.
+- **"Review due" needs no LLM to build the quiz**: due questions are stored with their options and answers.
+  Weak-topic practice is hidden when there is no live document set (e.g. after a review or retake) because it
+  needs the notes.
+- **Exports are plain stdlib/fpdf**, with Anki text HTML-escaped and tabs/newlines flattened so imports do not
+  break; CSV uses a BOM-prefixed UTF-8 download so Excel reads accents correctly.
+- **Document cleanup runs once per browser session at startup and swallows errors.** Why: no background
+  scheduler to manage; a broken store must never stop the app from opening. Documents are registered when
+  created and forgotten when explicitly deleted.
+- **Moved the history sidebar blocks to the end of the script.** Streamlit draws top to bottom, so a list
+  built before the quiz is created is stale until the next click (caught by a failing test).

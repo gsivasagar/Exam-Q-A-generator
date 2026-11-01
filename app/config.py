@@ -79,4 +79,7 @@ MAX_PDF_PAGES = int(os.getenv("MAX_PDF_PAGES", "300"))
 URL_TIMEOUT = float(os.getenv("URL_TIMEOUT", "15"))
 OCR_MODE = os.getenv("OCR_MODE", "auto").strip().lower()
 
+# Uploaded documents are forgotten from the vector store after this many days (0 = never).
+DOC_TTL_DAYS = float(os.getenv("DOC_TTL_DAYS", "7"))
+
 PASS_THRESHOLD = 0.6

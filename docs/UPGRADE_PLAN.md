@@ -366,7 +366,7 @@ measurements to prove it.
 - [x] 10 Concurrency, caching, progress
 - [x] 11 Grading upgrade (agreement/repeatability need a live model and the calibration set from Phase 1)
 - [x] 12 Ingestion formats and OCR (real OCR path untested here: no Tesseract installed)
-- [ ] 13 Persistence and product features
+- [x] 13 Persistence and product features (accounts deferred as the plan advised; a profile name is the stand-in)
 - [ ] 14 DevOps and hardening
 - [ ] 15 Optional advanced work
 
