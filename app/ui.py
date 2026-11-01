@@ -1,6 +1,14 @@
 # app/ui.py
-# Run from the repo root with the package importable: `pip install -e .` (or PYTHONPATH=.),
-# then `streamlit run app/ui.py`.
+# Run with `streamlit run app/ui.py`. Streamlit puts this file's folder (app/) on sys.path, not the repo root,
+# so add the root: otherwise `from app import ...` fails on hosts that cannot `pip install -e .`
+# (for example Streamlit Community Cloud, which only installs requirements.txt).
+import sys
+from pathlib import Path
+
+_ROOT = str(Path(__file__).resolve().parent.parent)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
 import logging
 import re
 import uuid
