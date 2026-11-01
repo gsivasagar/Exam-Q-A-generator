@@ -72,4 +72,11 @@ SEMANTIC_DEDUPE_THRESHOLD = float(os.getenv("SEMANTIC_DEDUPE_THRESHOLD", "0.85")
 # code), "holistic" asks the model for a 0-1 score directly.
 GRADING_MODE = os.getenv("GRADING_MODE", "rubric").strip().lower()
 
+# Uploads and ingestion. OCR_MODE "auto" (default) runs OCR only for PDFs with no text layer, when the
+# optional OCR packages and Tesseract are installed; "off" never does.
+MAX_UPLOAD_MB = float(os.getenv("MAX_UPLOAD_MB", "25"))
+MAX_PDF_PAGES = int(os.getenv("MAX_PDF_PAGES", "300"))
+URL_TIMEOUT = float(os.getenv("URL_TIMEOUT", "15"))
+OCR_MODE = os.getenv("OCR_MODE", "auto").strip().lower()
+
 PASS_THRESHOLD = 0.6

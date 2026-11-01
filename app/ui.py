@@ -13,7 +13,7 @@ from app.concurrency import effective_workers
 from app.grader import grade_all, regrade_failed
 from app.llm import LLMError, get_provider
 from app.pdf_loader import EmptyPDFError
-from app.qa_generator import generate_qa_pairs, ingest_pdf
+from app.qa_generator import generate_qa_pairs, ingest_document, ingest_url
 from app.recommendation import recommend
 from app.report import build_pdf
 from app.vector_store import delete_doc
@@ -50,7 +50,9 @@ def make_llm():
 
 
 # ───────────── Upload & options ─────────────
-uploaded_files = st.file_uploader("Upload one or more study PDFs", type="pdf", accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload one or more study files (PDF, Word, PowerPoint, Markdown, text)",
+                                  type=["pdf", "docx", "pptx", "md", "markdown", "txt"], accept_multiple_files=True)
+web_url = st.text_input("…or paste a web page address (optional)")
 topic_filter = st.text_input("🔍 *Optional topic filter* – only generate questions about this topic")
 num_q = st.slider("Number of quiz questions", min_value=5, max_value=25, value=10)
 TYPE_LABELS = {"Short answer": "short", "Multiple choice": "mcq", "Mixed": "mixed",
@@ -76,7 +78,7 @@ def start_quiz(doc_id, n, topic, qtype, level=None):
         st.warning(f"Only {len(qa_pairs)} usable questions were generated (requested {n}).")
 
 # ───────────── Create quiz ─────────────
-if uploaded_files and st.button("Create Quiz"):
+if (uploaded_files or web_url.strip()) and st.button("Create Quiz"):
     # Fresh document set per quiz so earlier uploads never leak into this one.
     doc_id = str(uuid.uuid4())
     old = st.session_state.get("doc_id")
@@ -86,8 +88,10 @@ if uploaded_files and st.button("Create Quiz"):
         st.session_state.pop(key, None)
     try:
         with st.spinner("Ingesting PDFs and generating questions – please wait …"):
-            for f in uploaded_files:
-                ingest_pdf(None, doc_id, filename=f.name, data=f.getvalue())
+            for f in uploaded_files or []:
+                ingest_document(None, doc_id, filename=f.name, data=f.getvalue())
+            if web_url.strip():
+                ingest_url(web_url.strip(), doc_id)
             start_quiz(doc_id, num_q, topic_filter.strip() or None, question_type, difficulty)
         st.success("Quiz ready! Scroll down to begin ⬇️")
     except EmptyPDFError as exc:

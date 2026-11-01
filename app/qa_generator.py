@@ -5,14 +5,13 @@ This module orchestrates the pipeline; the pieces live in `selection` (which chu
 """
 from __future__ import annotations
 
-import io
 import logging
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
 from .dedupe import dedupe, semantic_dedupe
 from .embeddings import get_embedding_function
 from .llm import LLMProvider
-from .pdf_loader import load_pdf
+from .loaders import load_document, load_web_page
 from .concurrency import effective_workers, run_parallel
 from .planning import BATCH_SIZE, QUESTION_TYPES, max_rounds, plan_wave, trim_to_quota, type_quota
 from .prompting import DIFFICULTIES, MAX_CONTEXT_CHARS, build_prompt, schema_for
@@ -29,17 +28,27 @@ _match_option = match_option  # kept for existing imports
 
 __all__ = [
     "BATCH_SIZE", "CHUNKS_PER_BATCH", "MAX_CONTEXT_CHARS", "N_OPTIONS", "QUESTION_TYPES",
-    "extract_json_array", "generate_qa_pairs", "ingest_pdf", "validate_pairs",
+    "extract_json_array", "generate_qa_pairs", "ingest_document", "ingest_pdf", "ingest_url", "validate_pairs",
 ]
 
 
-def ingest_pdf(source, doc_id: str, filename: str = "upload.pdf", data: Optional[bytes] = None) -> int:
-    """Chunk a PDF and store it under doc_id. `source` is a path or file-like.
-    Re-ingesting identical bytes is idempotent."""
+def ingest_document(source, doc_id: str, filename: str = "upload.pdf", data: Optional[bytes] = None) -> int:
+    """Chunk an uploaded document (PDF, DOCX, PPTX, Markdown or text) and store it under doc_id.
+    `source` is a path or file-like, or None when `data` is given. Re-ingesting identical bytes is
+    idempotent. Raises UploadError for unsupported/too large files."""
     if data is None:
         data = source.read() if hasattr(source, "read") else open(source, "rb").read()
-    chunks = load_pdf(io.BytesIO(data))
+    chunks = load_document(data, filename)
     return add_chunks(chunks, doc_id, source=filename, file_id=file_hash(data))
+
+
+ingest_pdf = ingest_document  # original name, kept for existing callers
+
+
+def ingest_url(url: str, doc_id: str) -> int:
+    """Download a web page (or PDF) and store its text under doc_id."""
+    chunks, name = load_web_page(url)
+    return add_chunks(chunks, doc_id, source=name, file_id=file_hash(url.encode("utf-8")))
 
 
 def _generate_batch(llm: LLMProvider, hits: List[dict], n: int, topic: Optional[str], qtype: str,

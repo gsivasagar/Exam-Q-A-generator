@@ -1,6 +1,7 @@
 """PDF text extraction and sentence-aware chunking."""
 from __future__ import annotations
 
+import io
 import re
 from pathlib import Path
 from typing import BinaryIO, List, NamedTuple, Optional, Union
@@ -57,31 +58,46 @@ def chunk_text(text: str, chunk_size: int = 300, overlap: int = 50) -> List[str]
     return chunks
 
 
-def load_pdf(source: Union[str, Path, BinaryIO], *, chunk_size: int = 300, overlap: int = 50,
-             mode: Optional[str] = None) -> List[Chunk]:
-    """Read a PDF (path or file-like) and return page-tagged text chunks.
+def chunks_from_pages(pages: List[str], *, chunk_size: int = 300, overlap: int = 50,
+                      mode: Optional[str] = None, paged: bool = True) -> List[Chunk]:
+    """Chunk already-extracted page texts (possibly returning an empty list).
 
     Legacy mode (default): chunks never span pages, so every chunk can be cited as "file, p.N".
     Structured mode (CHUNKING=structured): chunks follow headings and may span pages; `page` is the
     first page and `page_end` the last when different.
-    Raises EmptyPDFError if no text could be extracted.
-    """
-    reader = PdfReader(source if hasattr(source, "read") else str(source))
+    With paged=False (Word, Markdown, text, web pages) there is no real page number: chunks get page 0,
+    which the app treats as "no page"."""
     if (mode or config.CHUNKING) == "structured":
-        pages = [page.extract_text() or "" for page in reader.pages]
         chunks = [Chunk(c["text"], c["page"], c["heading"], c["page_end"] if c["page_end"] != c["page"] else None)
                   for c in structured_chunks(pages, config.CHUNK_TARGET_TOKENS, config.CHUNK_OVERLAP_TOKENS)]
-        if not chunks:
-            raise EmptyPDFError(
-                "No text found in this PDF. It may be a scanned document without a text layer."
-            )
-        return chunks
-    chunks = []
-    for page_no, page in enumerate(reader.pages, 1):
-        for text in chunk_text(page.extract_text() or "", chunk_size, overlap):
-            chunks.append(Chunk(text, page_no))
+    else:
+        chunks = [Chunk(text, page_no) for page_no, page_text in enumerate(pages, 1)
+                  for text in chunk_text(page_text or "", chunk_size, overlap)]
+    if not paged:
+        chunks = [c._replace(page=0, page_end=None) for c in chunks]
+    return chunks
+
+
+_NO_TEXT = "No text found in this PDF. It may be a scanned document without a text layer."
+
+
+def load_pdf(source: Union[str, Path, BinaryIO], *, chunk_size: int = 300, overlap: int = 50,
+             mode: Optional[str] = None, ocr=None) -> List[Chunk]:
+    """Read a PDF (path or file-like) and return page-tagged text chunks (see `chunks_from_pages`).
+
+    If the PDF has no text layer and OCR is enabled (OCR=auto and an OCR backend is installed, or an `ocr`
+    callable `ocr(pdf_bytes) -> list[str]` is given), the pages are recognised from images instead.
+    Raises EmptyPDFError if no text could be obtained.
+    """
+    raw = source.read() if hasattr(source, "read") else Path(source).read_bytes()
+    reader = PdfReader(io.BytesIO(raw))
+    pages = [page.extract_text() or "" for page in reader.pages]
+    chunks = chunks_from_pages(pages, chunk_size=chunk_size, overlap=overlap, mode=mode)
     if not chunks:
-        raise EmptyPDFError(
-            "No text found in this PDF. It may be a scanned document without a text layer."
-        )
+        from .ocr import ocr_pdf  # lazy: optional dependencies
+
+        recognised = (ocr or ocr_pdf)(raw)
+        chunks = chunks_from_pages(recognised, chunk_size=chunk_size, overlap=overlap, mode=mode)
+    if not chunks:
+        raise EmptyPDFError(_NO_TEXT)
     return chunks

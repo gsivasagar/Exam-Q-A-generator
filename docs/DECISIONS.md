@@ -185,3 +185,29 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
   the pre-check now (intentionally) skips the call, so the test uses a near-miss answer instead.
 - **Retry stores only the newly graded answers.** Why: the originals were never saved (ungradable answers are
   skipped by `store_results`), so storing the recovered ones avoids duplicates.
+
+## Phase 12: ingestion
+- **DOCX/PPTX read with `zipfile` + `ElementTree`, not python-docx / python-pptx.** Why: both formats are zip
+  files of XML and we only need text; avoids two dependencies. Trade-off: no tables-as-structure, no
+  headers/footers, no embedded images. Zip members are size-bounded to refuse zip bombs.
+- **Format is detected from content (magic bytes), the extension is only a fallback for text files.** Why: a
+  renamed or mislabelled upload should not bypass validation or be mis-parsed.
+- **Pages for DOCX/Markdown/text/web are 0, meaning "no page", not 1.** Why: citing "p.1" for a Word document
+  would be false. The UI already shows a page only when it is truthy. PPTX uses the slide number as the page.
+- **URL ingestion refuses private / loopback / link-local / reserved addresses and does not follow redirects.**
+  Why: server-side fetching of user-supplied URLs is a classic SSRF hole (reaching localhost services or cloud
+  metadata). A redirect could point back at an internal address, so the user must paste the final address.
+  Known residual risk: DNS rebinding between the check and the fetch is not fully closed (the resolver result
+  is not pinned for the connection). For a single-user local app this is acceptable; pin the IP before
+  exposing the app publicly.
+- **OCR is an optional backend, off unless the packages and Tesseract are present.** Why: Tesseract is a
+  system program (not pip-installable) and models are large. The code path is tested only with an injected
+  fake recogniser; verify with a real scanned PDF before relying on it.
+- **Kept `pypdf` as the extractor even though `pypdfium2` is ~12x faster with equal output.** Why: extraction
+  speed is negligible next to LLM calls, switching changes every chunk (and so retrieval results) without an
+  evaluation to justify it, and pypdfium2 is a compiled dependency. Revisit after Phase 1. pdfplumber was
+  rejected (slower, many glued words).
+- **Found a real bug while testing:** UTF-16 "decodes" almost any byte string, so Latin-1 text came out as
+  garbage. UTF-16 is now tried only when a byte-order mark is present.
+- **Added `fonttools` to requirements.** Why: pypdf warns it is needed to fully decode some font encodings; a
+  clean Docker install would not have it. Output on the sample PDFs was identical either way.
