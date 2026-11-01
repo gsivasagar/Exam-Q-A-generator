@@ -144,3 +144,25 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
   pairs this is a hint, not proof, so it is left to the Phase 1 evaluation before enabling.
 - **`mixed` still means short + multiple-choice only.** Why: changing it would alter existing behaviour and
   saved expectations; the new types are selected explicitly.
+
+## Phase 10: concurrency, caching, progress
+- **Default concurrency is 1 for Ollama and 4 for Gemini.** Why: one local model usually serialises requests
+  anyway (and parallel requests can raise memory use); the cloud API is where parallelism pays off. Users with
+  a capable GPU can set `OLLAMA_CONCURRENCY` equal to Ollama's `OLLAMA_NUM_PARALLEL`.
+- **Generation parallelism uses "waves" planned up front (`plan_wave`), not free-running threads.** Why: which
+  batch to request next depends on the results so far (quota, failed types). A wave assumes each request fills
+  its share of the shortfall, then re-plans after the wave. With one worker this reduces to exactly the old
+  loop; I verified the output is identical to the previous commit on 9 seeded scenarios.
+- **Chunk selection stays single-threaded; only the LLM calls run in the pool.** Why: the cyclers use shared
+  state and `random`; keeping them in the caller thread keeps quizzes reproducible given a seed (for 1 worker).
+- **Progress callbacks are always invoked from the calling thread.** Why: Streamlit UI objects must not be
+  touched from worker threads.
+- **The first worker error is re-raised only after the pool drains.** Why: avoids abandoned in-flight calls
+  and matches the sequential behaviour of failing with the original error.
+- **Response cache is opt-in (`LLM_CACHE_DIR`) and never caches failures.** Why: with it on, identical prompts
+  give identical quizzes, which users of the app would not expect; it is meant for development and the
+  evaluation harness (repeatable, free re-runs).
+- **No `st.cache_resource` change.** The plan asked for it, but `_open()` is already `lru_cache`d per
+  (path, embedder) at process level, which survives Streamlit reruns, so a second cache layer would add nothing.
+- **Latency numbers are simulated.** I state this in the metrics log; they show the mechanism works, not what
+  a real model will deliver.

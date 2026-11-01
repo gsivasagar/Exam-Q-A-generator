@@ -58,6 +58,7 @@ If you prefer running without Docker:
 *   **Ollama URL**: Defaults to `http://localhost:11434`.
 *   **Embedding model**: `EMBEDDING_MODEL` is `default` (built-in MiniLM, no setup) or `ollama:<model>`, e.g. `ollama:bge-m3` or `ollama:nomic-embed-text` (run `ollama pull <model>` first). Each embedder uses its own vector store, so switching never mixes vectors.
 *   **Chunk selection**: `SELECTION_STRATEGY=coverage` (default) or `random`.
+*   **Speed**: independent LLM calls can run in parallel. Gemini defaults to 4 at once (`GEMINI_CONCURRENCY`); Ollama defaults to 1 (`OLLAMA_CONCURRENCY`; raise it together with Ollama's `OLLAMA_NUM_PARALLEL`). `LLM_CACHE_DIR` caches identical requests on disk (useful for development and evaluation).
 
 ## 🧪 Development
 ```bash

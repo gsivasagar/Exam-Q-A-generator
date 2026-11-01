@@ -40,3 +40,21 @@ def trim_to_quota(pairs: List[Dict], quota: Dict[str, int], question_type: str) 
     if question_type == "mixed":
         random.shuffle(final)
     return final
+
+
+def plan_wave(quota: Dict[str, int], pairs: List[Dict], failed: Set[str], per_call: int,
+              size: int) -> List[Tuple[str, int]]:
+    """Up to `size` (type, count) requests to run concurrently. Each request assumes the earlier ones in
+    the wave will fill their share of the shortfall, so the types stay balanced. With size=1 this is
+    exactly the sequential one-request-at-a-time plan."""
+    virtual = list(pairs)
+    wave: List[Tuple[str, int]] = []
+    for _ in range(size):
+        request = next_request(quota, virtual, failed)
+        if request is None:
+            break
+        qtype, shortfall = request
+        count = min(per_call, shortfall + 1)
+        wave.append((qtype, count))
+        virtual += [{"type": qtype}] * min(count, shortfall)
+    return wave

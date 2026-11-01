@@ -363,7 +363,7 @@ measurements to prove it.
 - [x] 7 Hybrid retrieval + reranker (behind flags; defaults chosen with the Phase 1 retrieval eval)
 - [x] 8 Adaptive router
 - [x] 9 Verifier, difficulty, explanations (offline-tested; effect on real question quality needs a live model)
-- [ ] 10 Concurrency, caching, progress
+- [x] 10 Concurrency, caching, progress
 - [ ] 11 Grading upgrade
 - [ ] 12 Ingestion formats and OCR
 - [ ] 13 Persistence and product features

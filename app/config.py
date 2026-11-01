@@ -17,6 +17,14 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 CHROMA_DIR = os.getenv("CHROMA_PERSIST_DIR", str(DATA_DIR / "chroma"))
 DB_PATH = Path(os.getenv("QUIZ_DB_PATH", str(DATA_DIR / "quiz_results.db")))
 
+# Parallel LLM calls. Providers declare their own limit (Ollama OLLAMA_CONCURRENCY, default 1: one local
+# model rarely speeds up; set it equal to OLLAMA_NUM_PARALLEL to benefit). LLM_CACHE_DIR enables the
+# on-disk response cache (development/evaluation).
+LLM_CONCURRENCY = int(os.getenv("LLM_CONCURRENCY", "1"))
+OLLAMA_CONCURRENCY = int(os.getenv("OLLAMA_CONCURRENCY", "1"))
+GEMINI_CONCURRENCY = int(os.getenv("GEMINI_CONCURRENCY", "4"))
+LLM_CACHE_DIR = os.getenv("LLM_CACHE_DIR", "").strip() or None
+
 # LLM call behaviour
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "300"))            # seconds per request
 LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "2"))        # retries on transient errors

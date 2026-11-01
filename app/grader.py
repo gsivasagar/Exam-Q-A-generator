@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Dict, Optional
+from typing import Callable, Dict, List, Optional
 
 from .llm import LLMError, LLMProvider
 from .prompt_safety import neutralize_tags
@@ -89,3 +89,14 @@ def grade_question(qa: Dict, student: str, llm: LLMProvider) -> Dict:
     if not student.strip():
         return {"score": 0.0, "feedback": "No answer submitted."}
     return grade(qa["answer"], student, llm, question=qa["question"])
+
+
+def grade_all(qas: List[Dict], answers: List[str], llm: LLMProvider, *, workers: int = 1,
+              on_progress: Optional[Callable[[int, int], None]] = None) -> List[Dict]:
+    """Grade every answer, in order. Short/cloze answers (one LLM call each) run in parallel up to
+    `workers`; multiple-choice and true/false are instant. `on_progress(done, total)` is called from the
+    calling thread."""
+    from .concurrency import run_parallel
+
+    return run_parallel(lambda pair: grade_question(pair[0], pair[1], llm), list(zip(qas, answers)),
+                        workers, on_progress)

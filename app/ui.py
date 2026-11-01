@@ -9,7 +9,8 @@ import streamlit as st
 
 from app import config
 from app.database import load_results, store_results
-from app.grader import grade_question
+from app.concurrency import effective_workers
+from app.grader import grade_all
 from app.llm import LLMError, get_provider
 from app.pdf_loader import EmptyPDFError
 from app.qa_generator import generate_qa_pairs, ingest_pdf
@@ -61,8 +62,12 @@ difficulty = DIFFICULTY_LABELS[st.radio("Difficulty", list(DIFFICULTY_LABELS), h
 
 def start_quiz(doc_id, n, topic, qtype, level=None):
     """Generate a quiz from an already-ingested document set and put it in session state."""
+    bar = st.progress(0.0, text="Generating questions …")
     qa_pairs = generate_qa_pairs(doc_id, make_llm(), n=n, topic=topic, question_type=qtype, difficulty=level,
-                                 on_route=lambda path: st.session_state.__setitem__("route", path))
+                                 on_route=lambda path: st.session_state.__setitem__("route", path),
+                                 on_progress=lambda done, total: bar.progress(
+                                     min(done / total, 1.0), text=f"Generated {done}/{total} questions"))
+    bar.empty()
     st.session_state.doc_id = doc_id
     st.session_state.quiz_id = str(uuid.uuid4())
     st.session_state.qa_pairs = qa_pairs
@@ -114,13 +119,12 @@ if "qa_pairs" in st.session_state:
     if submitted:
         try:
             llm = make_llm()
-            graded = []
             bar = st.progress(0.0, text="Grading …")
-            total = len(answers)
-            for i, (qa, student) in enumerate(zip(st.session_state.qa_pairs, answers), 1):
-                res = grade_question(qa, student, llm)
-                graded.append({**qa, "student": student, **res})
-                bar.progress(i / total, text=f"Graded {i}/{total}")
+            results = grade_all(st.session_state.qa_pairs, answers, llm, workers=effective_workers(llm),
+                                on_progress=lambda done, total: bar.progress(done / total,
+                                                                             text=f"Graded {done}/{total}"))
+            graded = [{**qa, "student": student, **res}
+                      for qa, student, res in zip(st.session_state.qa_pairs, answers, results)]
             bar.empty()
             store_results(graded, st.session_state.session_id, st.session_state.quiz_id)
             st.session_state.graded = graded

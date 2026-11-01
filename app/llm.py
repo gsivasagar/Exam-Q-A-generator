@@ -6,6 +6,7 @@ errors and records token usage and latency (see `usage_summary`).
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Protocol, TypeVar
@@ -75,13 +76,15 @@ class _BaseProvider:
         self.retries = config.LLM_MAX_RETRIES if retries is None else retries
         self.backoff = config.LLM_RETRY_BACKOFF if backoff is None else backoff
         self.stats: List[CallStats] = []
+        self._stats_lock = threading.Lock()
 
     def _call(self, fn: Callable[[], T]) -> T:
         return with_retries(fn, retries=self.retries, backoff=self.backoff)
 
     def _record(self, started: float, prompt_tokens, completion_tokens) -> None:
         stat = CallStats(prompt_tokens, completion_tokens, time.perf_counter() - started)
-        self.stats.append(stat)
+        with self._stats_lock:
+            self.stats.append(stat)
         log.info("LLM call: %s prompt tokens, %s completion tokens, %.2fs",
                  prompt_tokens, completion_tokens, stat.seconds)
 
@@ -106,6 +109,7 @@ class OllamaProvider(_BaseProvider):
         self.num_ctx = num_ctx if num_ctx is not None else config.OLLAMA_NUM_CTX
         # ~3 chars/token, leaving a third of the window for instructions and the answer
         self.context_chars = int(self.num_ctx * 2) if self.num_ctx else None
+        self.max_concurrency = config.OLLAMA_CONCURRENCY
         self._client = Client(host=host or config.OLLAMA_URL,
                               timeout=timeout if timeout is not None else config.LLM_TIMEOUT)
 
@@ -145,6 +149,7 @@ class GeminiProvider(_BaseProvider):
 
         self.model = model or config.GEMINI_MODEL
         self.context_chars = config.GEMINI_CONTEXT_CHARS
+        self.max_concurrency = config.GEMINI_CONCURRENCY
         self.thinking_budget = (thinking_budget if thinking_budget is not None
                                 else config.GEMINI_THINKING_BUDGET)
         self._client = genai.Client(api_key=api_key)
@@ -191,6 +196,10 @@ def get_provider(
     gemini_api_key: Optional[str] = None,
     ollama_model: Optional[str] = None,
 ) -> LLMProvider:
-    if provider == "Gemini":
-        return GeminiProvider(gemini_api_key or config.GEMINI_API_KEY)
-    return OllamaProvider(model=ollama_model)
+    llm = (GeminiProvider(gemini_api_key or config.GEMINI_API_KEY) if provider == "Gemini"
+           else OllamaProvider(model=ollama_model))
+    if config.LLM_CACHE_DIR:
+        from .llm_cache import CachedProvider
+
+        return CachedProvider(llm, config.LLM_CACHE_DIR)
+    return llm

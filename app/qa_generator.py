@@ -13,7 +13,8 @@ from .dedupe import dedupe, semantic_dedupe
 from .embeddings import get_embedding_function
 from .llm import LLMProvider
 from .pdf_loader import load_pdf
-from .planning import BATCH_SIZE, QUESTION_TYPES, max_rounds, next_request, trim_to_quota, type_quota
+from .concurrency import effective_workers, run_parallel
+from .planning import BATCH_SIZE, QUESTION_TYPES, max_rounds, plan_wave, trim_to_quota, type_quota
 from .prompting import DIFFICULTIES, MAX_CONTEXT_CHARS, build_prompt, schema_for
 from . import config
 from .router import FULL, choose_path, context_budget
@@ -62,14 +63,17 @@ def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
                       topic: Union[None, str, Sequence[str]] = None,
                       question_type: str = "short", strategy: Optional[str] = None,
                       on_route: Optional[Callable[[str], None]] = None,
-                      difficulty: Optional[str] = None, verify: Optional[bool] = None) -> List[Dict]:
+                      difficulty: Optional[str] = None, verify: Optional[bool] = None,
+                      on_progress: Optional[Callable[[int, int], None]] = None) -> List[Dict]:
     """Generate up to n validated, de-duplicated questions in batches drawn from
     different chunks. `topic` may be one string or a list of topics.
     question_type: "short", "mcq", or "mixed" (alternates batches).
     strategy: how chunks are chosen, "coverage" or "random" (default from SELECTION_STRATEGY).
     on_route: optional callback told which path was used ("full", "topic" or "coverage").
     difficulty: None, "easy", "medium" or "hard". verify: second-pass check that each question is supported
-    by its passage (default from VERIFY_QUESTIONS). Types "tf" (True/False) and "cloze" (fill in the blank)."""
+    by its passage (default from VERIFY_QUESTIONS). Types "tf" (True/False) and "cloze" (fill in the blank).
+    on_progress(done, wanted): called after each round with the number of usable questions so far.
+    Independent calls run in parallel up to the provider's concurrency limit (1 = sequential)."""
     if difficulty is not None and difficulty not in DIFFICULTIES:
         raise ValueError(f"difficulty must be one of {DIFFICULTIES}")
     verify = config.VERIFY_QUESTIONS if verify is None else verify
@@ -99,18 +103,25 @@ def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
         chunks, per_call, max_chars = make_cycler(hits, strategy), BATCH_SIZE, None
     pairs: List[Dict] = []
     failed = set()  # types whose batches returned nothing; don't let them starve the others
-    for _ in range(max_rounds(n)):
-        request = next_request(quota, pairs, failed)
-        if request is None:
+    workers = effective_workers(llm)
+    rounds, limit = 0, max_rounds(n)
+    while rounds < limit:
+        wave = plan_wave(quota, pairs, failed, per_call, min(workers, limit - rounds))
+        if not wave:
             break
-        qtype, shortfall = request
-        new = _generate_batch(llm, chunks.next_batch(), min(per_call, shortfall + 1), topic_text, qtype,
-                              max_chars, difficulty, verify)
-        if not new:
-            failed.add(qtype)
-        pairs = dedupe(pairs + new)
-        if config.SEMANTIC_DEDUPE:
-            pairs = semantic_dedupe(pairs, get_embedding_function(), config.SEMANTIC_DEDUPE_THRESHOLD)
+        jobs = [(qtype, count, chunks.next_batch()) for qtype, count in wave]  # selection stays single-threaded
+        results = run_parallel(
+            lambda job: _generate_batch(llm, job[2], job[1], topic_text, job[0], max_chars, difficulty, verify),
+            jobs, workers)
+        for (qtype, _, _), new in zip(jobs, results):
+            rounds += 1
+            if not new:
+                failed.add(qtype)
+            pairs = dedupe(pairs + new)
+            if config.SEMANTIC_DEDUPE:
+                pairs = semantic_dedupe(pairs, get_embedding_function(), config.SEMANTIC_DEDUPE_THRESHOLD)
+        if on_progress:
+            on_progress(min(len(pairs), n), n)
     if not pairs:
         raise ValueError("The model did not return any usable questions. Try again or use a different model.")
     final = trim_to_quota(pairs, quota, question_type)
