@@ -81,19 +81,83 @@ class CoverageCycler:
             random.shuffle(members)
             self._queues.append(deque(members))
 
+    def take(self) -> Optional[dict]:
+        """The next unused chunk in rotation order, or None once every chunk has been handed out this round."""
+        for _ in range(len(self._queues)):
+            q = self._queues[self._cursor % len(self._queues)]
+            self._cursor += 1
+            if q:
+                return q.popleft()
+        return None
+
+    def reset(self) -> None:
+        """Start a new round: every chunk becomes available again."""
+        self._refill()
+
     def next_batch(self) -> List[dict]:
         total = sum(len(g) for g in self._all)
         size = min(CHUNKS_PER_BATCH, total)
         batch: List[dict] = []
         while len(batch) < size:
-            if not any(self._queues):
+            chunk = self.take()
+            if chunk is None:
                 self._refill()
-            q = self._queues[self._cursor % len(self._queues)]
-            self._cursor += 1
-            if q:
-                chunk = q.popleft()
-                if not any(chunk is b for b in batch):  # a mid-batch refill must not repeat a chunk
+            elif not any(chunk is b for b in batch):  # a mid-batch refill must not repeat a chunk
+                batch.append(chunk)
+        return batch
+
+
+class _ShuffledSource:
+    """A small source (too few chunks to cluster): its chunks in shuffled order, one round at a time."""
+
+    def __init__(self, hits: List[dict]):
+        self._hits = list(hits)
+        self.reset()
+
+    def reset(self) -> None:
+        items = list(self._hits)
+        random.shuffle(items)
+        self._queue: Deque[dict] = deque(items)
+
+    def take(self) -> Optional[dict]:
+        return self._queue.popleft() if self._queue else None
+
+
+class MultiSourceCycler:
+    """Coverage selection across several uploaded files: each batch takes chunks from different FILES first
+    (round-robin), and within a file uses meaning-based clusters. So a quiz built from five files draws on
+    all of them, and one huge file cannot crowd out small ones. A file that runs out of unused chunks is
+    skipped until every file is used up; then a new round begins."""
+
+    def __init__(self, hits: List[dict], max_clusters: int = MAX_CLUSTERS):
+        by_source: dict = {}
+        for h in hits:
+            by_source.setdefault(h.get("source", ""), []).append(h)
+        sources = list(by_source.values())
+        random.shuffle(sources)  # which file leads is random, so quizzes vary
+        self.n_sources = len(sources)
+        self._total = len(hits)
+        self._sources = [CoverageCycler(g, max_clusters) if len(g) > CHUNKS_PER_BATCH else _ShuffledSource(g)
+                         for g in sources]
+        self._cursor = 0
+
+    def next_batch(self) -> List[dict]:
+        size = min(CHUNKS_PER_BATCH, self._total)
+        batch: List[dict] = []
+        while len(batch) < size:
+            progressed = False
+            for _ in range(len(self._sources)):
+                src = self._sources[self._cursor % len(self._sources)]
+                self._cursor += 1
+                chunk = src.take()
+                if chunk is not None and not any(chunk is b for b in batch):
                     batch.append(chunk)
+                    progressed = True
+                    if len(batch) == size:
+                        break
+            if not progressed:  # every file is used up: begin a new round
+                for src in self._sources:
+                    src.reset()
         return batch
 
 
@@ -105,6 +169,8 @@ def make_cycler(hits: List[dict], strategy: Optional[str] = None):
         raise ValueError(f"selection strategy must be one of {STRATEGIES}")
     if (strategy == "coverage" and len(hits) > CHUNKS_PER_BATCH
             and all(h.get("embedding") is not None for h in hits)):
+        if len({h.get("source", "") for h in hits}) > 1:
+            return MultiSourceCycler(hits)
         return CoverageCycler(hits)
     return BatchCycler(hits)
 

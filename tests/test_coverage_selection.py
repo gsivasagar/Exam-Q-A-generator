@@ -117,3 +117,84 @@ def test_generate_qa_pairs_accepts_strategy(tmp_path):
     for strategy in ("coverage", "random"):
         out = generate_qa_pairs("cov", FakeLLM(), n=5, strategy=strategy)
         assert len(out) == 5
+
+
+# ---------- several source files ----------
+def multi_hits(sizes, dim=6, seed=0):
+    """Chunks from several files; each file has its own region of embedding space."""
+    rng = np.random.RandomState(seed)
+    hits = []
+    for si, n in enumerate(sizes):
+        centre = np.zeros(dim)
+        centre[si % dim] = 1.0
+        for i in range(n):
+            hits.append({"text": f"s{si}-c{i}", "source": f"file{si}.pdf", "page": 1,
+                         "embedding": centre + rng.normal(0, 0.05, dim)})
+    return hits
+
+
+class TestMultiSourceCycler:
+    def test_each_batch_draws_from_different_files(self):
+        from app.selection import MultiSourceCycler
+        random.seed(0)
+        cyc = MultiSourceCycler(multi_hits([6, 6, 6, 6]))
+        for _ in range(3):
+            batch = cyc.next_batch()
+            assert len({h["source"] for h in batch}) == 4 and len(batch) == CHUNKS_PER_BATCH
+
+    def test_small_files_are_not_crowded_out_by_a_huge_one(self):
+        from app.selection import MultiSourceCycler
+        random.seed(1)
+        cyc = MultiSourceCycler(multi_hits([120, 2, 3]))   # 120-chunk file next to tiny ones
+        first = cyc.next_batch()
+        assert {h["source"] for h in first} >= {"file1.pdf", "file2.pdf"}
+        # random sampling would almost never include both tiny files in one batch of four
+        random.seed(1)
+        tiny = {"file1.pdf", "file2.pdf"}
+        misses = sum(1 for _ in range(50)
+                     if not tiny <= {h["source"] for h in BatchCycler(multi_hits([120, 2, 3])).next_batch()})
+        assert misses > 40
+
+    def test_no_chunk_repeats_inside_a_batch_and_everything_is_eventually_used(self):
+        from app.selection import MultiSourceCycler
+        random.seed(2)
+        hits = multi_hits([7, 3, 5])
+        cyc = MultiSourceCycler(hits)
+        seen = set()
+        for _ in range(12):
+            batch = cyc.next_batch()
+            texts = [h["text"] for h in batch]
+            assert len(texts) == len(set(texts)) == CHUNKS_PER_BATCH
+            seen |= set(texts)
+        assert seen == {h["text"] for h in hits}
+
+    def test_exhausted_files_are_skipped_until_a_new_round(self):
+        from app.selection import MultiSourceCycler
+        random.seed(3)
+        cyc = MultiSourceCycler(multi_hits([1, 1, 9]))
+        sources_in_round = [h["source"] for _ in range(3) for h in cyc.next_batch()]
+        # file0 and file1 have one chunk each: they appear once before the big file is used up
+        assert sources_in_round.count("file0.pdf") <= 2 and sources_in_round.count("file2.pdf") >= 8
+
+    def test_make_cycler_chooses_by_number_of_sources(self):
+        from app.selection import MultiSourceCycler
+        assert isinstance(make_cycler(multi_hits([5, 5]), "coverage"), MultiSourceCycler)
+        assert isinstance(make_cycler(multi_hits([12]), "coverage"), CoverageCycler)
+        assert isinstance(make_cycler(multi_hits([5, 5]), "random"), BatchCycler)
+
+    def test_total_smaller_than_a_batch(self):
+        from app.selection import MultiSourceCycler
+        cyc = MultiSourceCycler(multi_hits([1, 2]))
+        assert len(cyc.next_batch()) == 3
+
+
+class TestCoverageCyclerTakeAndReset:
+    def test_take_exhausts_then_reset_restores(self):
+        random.seed(0)
+        vecs, truth = blobs(n_per=3)
+        cyc = CoverageCycler(hits_from(vecs, truth))
+        got = [cyc.take() for _ in range(9)]
+        assert all(g is not None for g in got) and len({g["text"] for g in got}) == 9
+        assert cyc.take() is None
+        cyc.reset()
+        assert cyc.take() is not None

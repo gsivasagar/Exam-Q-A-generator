@@ -195,3 +195,38 @@ class TestEndToEnd:
         monkeypatch.setattr(config, "SEMANTIC_DEDUPE", True)
         ingest_pdf(None, "d", filename="a.pdf", data=notes())
         assert len(generate_qa_pairs("d", FakeLLM(), n=5)) >= 1
+
+
+class TestRejectedQuestionsAreReplaced:
+    """The verify-and-regenerate loop: questions the verifier rejects leave a shortfall, and the bounded
+    generation rounds fill it, so the quiz still reaches the requested size when enough good ones exist."""
+
+    class Half(SmartLLM):
+        """Every other statement is flagged 'bad' and rejected, so only half of each batch survives."""
+
+    def test_quiz_reaches_requested_size_after_rejections(self, store):
+        ingest_pdf(None, "d", filename="a.pdf", data=notes())
+        llm = self.Half()
+        out = generate_qa_pairs("d", llm, n=6, question_type="tf", verify=True)
+        assert len(out) == 6 and all("bad" not in p["question"] for p in out)
+        generated = sum(1 for p in llm.prompts if "checking exam questions" not in p)
+        verified = sum(1 for p in llm.prompts if "checking exam questions" in p)
+        assert generated >= 2 and verified == generated      # more than one round was needed, each one checked
+
+    def test_rounds_are_bounded_when_everything_is_rejected(self, store):
+        ingest_pdf(None, "d", filename="a.pdf", data=notes())
+
+        class RejectAll(SmartLLM):
+            def generate(self, prompt, *, schema=None, **_):
+                if "results" in (schema or {}).get("properties", {}):
+                    self.calls += 1
+                    self.prompts.append(prompt)
+                    n = prompt.count("Question ")
+                    return json.dumps({"results": [{"id": i + 1, "supported": False} for i in range(n)]})
+                return super().generate(prompt, schema=schema)
+
+        llm = RejectAll()
+        with pytest.raises(ValueError, match="did not return any usable questions"):
+            generate_qa_pairs("d", llm, n=5, question_type="tf", verify=True)
+        from app.planning import max_rounds
+        assert llm.calls <= 2 * max_rounds(5)                  # generate + verify per round, never unbounded

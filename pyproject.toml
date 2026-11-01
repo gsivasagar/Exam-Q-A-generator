@@ -10,6 +10,12 @@ readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["dependencies"]
 
+[project.optional-dependencies]
+# Optional local ONNX embedding models and rerankers (EMBEDDING_MODEL=fastembed:..., RERANKER=fastembed:...)
+fastembed = ["fastembed>=0.3"]
+# Optional OCR for scanned PDFs (also needs the Tesseract program)
+ocr = ["pypdfium2", "pytesseract"]
+
 [tool.setuptools]
 packages = ["app"]
 

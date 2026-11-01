@@ -43,6 +43,9 @@ SELECTION_STRATEGY = os.getenv("SELECTION_STRATEGY", "coverage").strip().lower()
 # Chunking: "legacy" (300-word sentence chunks, one page each) or "structured" (heading-aware,
 # token-sized, may span pages). PARENT_EXPANSION sends the surrounding section for topic searches.
 CHUNKING = os.getenv("CHUNKING", "legacy").strip().lower()
+CHUNK_WORDS = int(os.getenv("CHUNK_WORDS", "300"))              # legacy chunker: words per chunk
+CHUNK_OVERLAP_WORDS = int(os.getenv("CHUNK_OVERLAP_WORDS", "50"))
+CHUNK_MIN_TOKENS = int(os.getenv("CHUNK_MIN_TOKENS", "80"))      # structured chunker: smallest standalone chunk
 CHUNK_TARGET_TOKENS = int(os.getenv("CHUNK_TARGET_TOKENS", "400"))
 CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", "60"))
 PARENT_EXPANSION = os.getenv("PARENT_EXPANSION", "false").strip().lower() in {"1", "true", "yes", "on"}

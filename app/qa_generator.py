@@ -68,29 +68,17 @@ def _generate_batch(llm: LLMProvider, hits: List[dict], n: int, topic: Optional[
     return []
 
 
-def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
-                      topic: Union[None, str, Sequence[str]] = None,
-                      question_type: str = "short", strategy: Optional[str] = None,
-                      on_route: Optional[Callable[[str], None]] = None,
-                      difficulty: Optional[str] = None, verify: Optional[bool] = None,
-                      on_progress: Optional[Callable[[int, int], None]] = None) -> List[Dict]:
-    """Generate up to n validated, de-duplicated questions in batches drawn from
-    different chunks. `topic` may be one string or a list of topics.
-    question_type: "short", "mcq", or "mixed" (alternates batches).
-    strategy: how chunks are chosen, "coverage" or "random" (default from SELECTION_STRATEGY).
-    on_route: optional callback told which path was used ("full", "topic" or "coverage").
-    difficulty: None, "easy", "medium" or "hard". verify: second-pass check that each question is supported
-    by its passage (default from VERIFY_QUESTIONS). Types "tf" (True/False) and "cloze" (fill in the blank).
-    on_progress(done, wanted): called after each round with the number of usable questions so far.
-    Independent calls run in parallel up to the provider's concurrency limit (1 = sequential)."""
+def _check_request(question_type: str, difficulty: Optional[str]) -> None:
     if difficulty is not None and difficulty not in DIFFICULTIES:
         raise ValueError(f"difficulty must be one of {DIFFICULTIES}")
-    verify = config.VERIFY_QUESTIONS if verify is None else verify
     if question_type not in QUESTION_TYPES:
         raise ValueError(f"question_type must be one of {QUESTION_TYPES}")
-    topics = normalize_topics(topic)
-    topic_text = ", ".join(topics) or None
 
+
+def _choose_context(doc_id: str, llm: LLMProvider, topics: List[str], topic_text: Optional[str],
+                    strategy: Optional[str], on_route: Optional[Callable[[str], None]]):
+    """Decide how chunks reach the model. Returns (chunk source, questions per call, context size cap):
+    the whole document when it fits the budget, else topic retrieval or coverage selection."""
     all_hits = get_all_chunks(doc_id)
     if not all_hits:
         raise ValueError(f"No content found for document set: {doc_id}")
@@ -104,14 +92,19 @@ def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
     log.info("Quiz routing: %s path (%d chunks, budget %d chars)", path, len(all_hits), budget)
     if on_route:
         on_route(path)
-
-    quota = type_quota(question_type, n)
     if path == FULL:
-        chunks, per_call, max_chars = FullContextCycler(all_hits), config.FULL_CONTEXT_BATCH, budget
-    else:
-        chunks, per_call, max_chars = make_cycler(hits, strategy), BATCH_SIZE, None
+        return FullContextCycler(all_hits), config.FULL_CONTEXT_BATCH, budget
+    return make_cycler(hits, strategy), BATCH_SIZE, None
+
+
+def _fill_quota(llm: LLMProvider, chunks, quota: Dict[str, int], n: int, per_call: int, max_chars: Optional[int],
+                topic_text: Optional[str], difficulty: Optional[str], verify: bool,
+                on_progress: Optional[Callable[[int, int], None]]) -> List[Dict]:
+    """Run generation rounds (in parallel waves where the provider allows) until every type has its quota
+    or the round limit is reached. A type whose batches come back empty is dropped so it cannot starve
+    the others."""
     pairs: List[Dict] = []
-    failed: Set[str] = set()  # types whose batches returned nothing; don't let them starve the others
+    failed: Set[str] = set()
     workers = effective_workers(llm)
     rounds, limit = 0, max_rounds(n)
     while rounds < limit:
@@ -131,6 +124,32 @@ def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
                 pairs = semantic_dedupe(pairs, get_embedding_function(), config.SEMANTIC_DEDUPE_THRESHOLD)
         if on_progress:
             on_progress(min(len(pairs), n), n)
+    return pairs
+
+
+def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
+                      topic: Union[None, str, Sequence[str]] = None,
+                      question_type: str = "short", strategy: Optional[str] = None,
+                      on_route: Optional[Callable[[str], None]] = None,
+                      difficulty: Optional[str] = None, verify: Optional[bool] = None,
+                      on_progress: Optional[Callable[[int, int], None]] = None) -> List[Dict]:
+    """Generate up to n validated, de-duplicated questions in batches drawn from
+    different chunks. `topic` may be one string or a list of topics.
+    question_type: "short", "mcq", "tf" (True/False), "cloze" (fill in the blank) or "mixed" (short + mcq).
+    strategy: how chunks are chosen, "coverage" or "random" (default from SELECTION_STRATEGY).
+    on_route: optional callback told which path was used ("full", "topic" or "coverage").
+    difficulty: None, "easy", "medium" or "hard". verify: second-pass check that each question is supported
+    by its passage (default from VERIFY_QUESTIONS).
+    on_progress(done, wanted): called after each round with the number of usable questions so far.
+    Independent calls run in parallel up to the provider's concurrency limit (1 = sequential)."""
+    _check_request(question_type, difficulty)
+    verify = config.VERIFY_QUESTIONS if verify is None else verify
+    topics = normalize_topics(topic)
+    topic_text = ", ".join(topics) or None
+
+    chunks, per_call, max_chars = _choose_context(doc_id, llm, topics, topic_text, strategy, on_route)
+    quota = type_quota(question_type, n)
+    pairs = _fill_quota(llm, chunks, quota, n, per_call, max_chars, topic_text, difficulty, verify, on_progress)
     if not pairs:
         raise ValueError("The model did not return any usable questions. Try again or use a different model.")
     final = trim_to_quota(pairs, quota, question_type)

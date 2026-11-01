@@ -107,3 +107,40 @@ class TestParentExpansion:
         store.add_chunks([Chunk("text here.", 3, "1 Intro", 4)], "d", source="s.pdf", file_id="f")
         (h,) = store.get_all_chunks("d")
         assert (h["heading"], h["page"], h["page_end"]) == ("1 Intro", 3, 4)
+
+
+class TestHybridWithParentExpansion:
+    """Regression: expanded parent text used to break the dense half of hybrid retrieval
+    (parent text no longer matched the chunk index), silently degrading it to keyword-only search."""
+
+    def _store_notes(self, store, monkeypatch):
+        monkeypatch.setattr(config, "PARENT_EXPANSION", True)
+        chunks = [Chunk("The mitochondria is the organelle that produces ATP through respiration.", 1, "Cells"),
+                  Chunk("Ribosomes assemble proteins from messenger RNA instructions.", 1, "Cells"),
+                  Chunk("Photosynthesis converts light energy into chemical energy in chloroplasts.", 2, "Plants"),
+                  Chunk("Stomata are pores that guard cells open and close.", 2, "Plants"),
+                  Chunk("The TCP handshake uses SYN and ACK segments.", 3, "Network")]
+        store.add_chunks(chunks, "d", source="n.pdf", file_id="f")
+
+    def test_hybrid_ranks_the_same_chunks_with_and_without_expansion(self, store, monkeypatch):
+        from app.retrieval import retrieve
+        self._store_notes(store, monkeypatch)
+        for query in ("how do cells make their fuel", "SYN ACK", "gas exchange pores on leaves"):
+            monkeypatch.setattr(config, "PARENT_EXPANSION", False)
+            plain = [h["text"] for h in retrieve(query, "d", k=3, mode="hybrid")]
+            monkeypatch.setattr(config, "PARENT_EXPANSION", True)
+            expanded = [h["text"] for h in retrieve(query, "d", k=3, mode="hybrid")]
+            # every plain hit must be covered by some expanded (parent) hit, and order of first appearance kept
+            assert all(any(child in parent for parent in expanded) for child in plain), (query, plain, expanded)
+
+    def test_hybrid_with_expansion_returns_parent_text(self, store, monkeypatch):
+        from app.retrieval import retrieve
+        self._store_notes(store, monkeypatch)
+        top = retrieve("SYN ACK", "d", k=1, mode="hybrid")[0]
+        assert "TCP handshake" in top["text"]
+
+    def test_expand_parents_is_explicit_and_dedupes(self):
+        from app.vector_store import expand_parents
+        hits = [{"text": "a", "parent": "a b"}, {"text": "b", "parent": "a b"}, {"text": "c"}]
+        assert [h["text"] for h in expand_parents(hits)] == ["a b", "c"]
+        assert expand_parents([]) == []

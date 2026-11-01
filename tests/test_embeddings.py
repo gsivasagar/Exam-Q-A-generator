@@ -15,7 +15,11 @@ class TestSpec:
         assert parse_spec("ollama:bge-m3") == ("ollama", "bge-m3")
         assert parse_spec("ollama:qwen3-embedding:0.6b") == ("ollama", "qwen3-embedding:0.6b")
 
-    @pytest.mark.parametrize("bad", ["openai:x", "ollama:", "bge-m3", "ollama"])
+    def test_fastembed_spec(self):
+        assert parse_spec("fastembed:BAAI/bge-small-en-v1.5") == ("fastembed", "BAAI/bge-small-en-v1.5")
+        assert collection_name("fastembed:BAAI/bge-small-en-v1.5") == "exam_chunks__fastembed_BAAI_bge-small-en-v1.5"
+
+    @pytest.mark.parametrize("bad", ["openai:x", "ollama:", "bge-m3", "ollama", "fastembed:"])
     def test_rejects_bad_specs(self, bad):
         with pytest.raises(ValueError):
             parse_spec(bad)
@@ -113,3 +117,73 @@ class TestStoreUsesConfiguredEmbedder:
         monkeypatch.setattr(config, "CHROMA_DIR", str(tmp_path / "b"))
         assert vector_store._collection() is not a
         vector_store._collection.cache_clear()
+
+
+class TestFastEmbedEmbedder:
+    class Enc:
+        def embed(self, texts):
+            return ([float(len(t)), 1.0] for t in texts)
+
+    def test_embeds(self):
+        from app.embeddings import FastEmbedEmbedder
+        assert FastEmbedEmbedder("m", encoder=self.Enc())(["ab", "abc"]) == [[2.0, 1.0], [3.0, 1.0]]
+        assert FastEmbedEmbedder("m", encoder=self.Enc())([]) == []
+
+    def test_missing_package_message(self, monkeypatch):
+        import builtins
+        real = builtins.__import__
+
+        def fake(name, *a, **k):
+            if name == "fastembed":
+                raise ImportError("nope")
+            return real(name, *a, **k)
+
+        monkeypatch.setattr(builtins, "__import__", fake)
+        from app.embeddings import FastEmbedEmbedder
+        with pytest.raises(EmbeddingError, match="pip install fastembed"):
+            FastEmbedEmbedder("m")
+
+    def test_failure_wrapped_and_protocol(self):
+        from app.embeddings import FastEmbedEmbedder
+
+        class Bad:
+            def embed(self, texts):
+                raise RuntimeError("boom")
+
+        with pytest.raises(EmbeddingError):
+            FastEmbedEmbedder("m", encoder=Bad())(["x"])
+        e = FastEmbedEmbedder("m", encoder=self.Enc())
+        assert e.name() == "exam_fastembed_embedder" and e.default_space() == "cosine"
+
+
+class TestSearchThroughRealChroma:
+    """Regression: Chroma calls embed_query when searching; custom embedders without it crashed every search."""
+
+    class Client:
+        def embed(self, model, input):  # noqa: A002
+            return {"embeddings": [[float(len(t) % 5), float(t.count("a")), 1.0] for t in input]}
+
+    def _use(self, store, monkeypatch, make):
+        from app import config as cfg
+        monkeypatch.setattr(cfg, "EMBEDDING_MODEL", "ollama:fake")
+        monkeypatch.setattr("app.vector_store.get_embedding_function", lambda spec: make())
+        store._collection.cache_clear()
+
+    def test_ollama_embedder_supports_search(self, store, monkeypatch):
+        self._use(store, monkeypatch, lambda: OllamaEmbedder("fake", client=self.Client()))
+        store.add_chunks([Chunk("banana bread recipe.", 1), Chunk("tcp handshake notes.", 1)], "d",
+                         source="s.pdf", file_id="f")
+        hits = store.similarity_search("banana", k=2, doc_id="d")
+        assert len(hits) == 2 and all("distance" in h for h in hits)
+
+    def test_fastembed_embedder_supports_search(self, store, monkeypatch):
+        from app.embeddings import FastEmbedEmbedder
+
+        class Enc:
+            def embed(self, texts):
+                return ([float(len(t) % 5), float(t.count("a")), 1.0] for t in texts)
+
+        self._use(store, monkeypatch, lambda: FastEmbedEmbedder("fake", encoder=Enc()))
+        store.add_chunks([Chunk("banana bread recipe.", 1), Chunk("tcp handshake notes.", 1)], "d",
+                         source="s.pdf", file_id="f")
+        assert len(store.similarity_search("banana", k=2, doc_id="d")) == 2

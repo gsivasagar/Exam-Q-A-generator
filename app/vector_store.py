@@ -71,19 +71,28 @@ def _parent_texts(chunks: List[Chunk], max_chars: int = 3600) -> List[str]:
     return out
 
 
-def _hits(docs, metas, embeddings=None, expand: bool = False) -> List[Hit]:
-    """Turn Chroma results into hits. With `expand`, a chunk is replaced by its stored parent section
-    (de-duplicated), the "small-to-big" step: search on small chunks, show the model the larger context."""
-    hits, seen_parents = [], set()
+def expand_parents(hits: List[Hit]) -> List[Hit]:
+    """The "small-to-big" step: replace each chunk by its stored parent section (when it has one),
+    keeping order and dropping repeats. Hits without a parent are unchanged."""
+    out, seen = [], set()
+    for h in hits:
+        parent = h.get("parent")
+        if parent:
+            if parent in seen:
+                continue
+            seen.add(parent)
+            h = {**h, "text": parent}
+        out.append(h)
+    return out
+
+
+def _hits(docs, metas, embeddings=None) -> List[Hit]:
+    hits = []
     for i, (d, m) in enumerate(zip(docs, metas)):
         m = m or {}
-        text = d
-        if expand and m.get("parent"):
-            if m["parent"] in seen_parents:
-                continue
-            seen_parents.add(m["parent"])
-            text = m["parent"]
-        h = {"text": text, "source": m.get("source", ""), "page": m.get("page")}
+        h = {"text": d, "source": m.get("source", ""), "page": m.get("page")}
+        if m.get("parent"):
+            h["parent"] = m["parent"]
         if m.get("page_end"):
             h["page_end"] = m["page_end"]
         if m.get("heading"):
@@ -94,19 +103,19 @@ def _hits(docs, metas, embeddings=None, expand: bool = False) -> List[Hit]:
     return hits
 
 
-def similarity_search(query: str, k: int = 5, doc_id: Optional[str] = None) -> List[Hit]:
+def similarity_search(query: str, k: int = 5, doc_id: Optional[str] = None,
+                      expand: Optional[bool] = None) -> List[Hit]:
+    """Nearest chunks to `query`. `expand` (default: PARENT_EXPANSION) swaps chunks for their parent sections."""
     kwargs = {"where": {"doc_id": doc_id}} if doc_id else {}
     res = _collection().query(query_texts=[query], n_results=k,
                               include=["documents", "metadatas", "embeddings", "distances"], **kwargs)
     if not res["documents"]:
         return []
     embeddings = res["embeddings"][0] if res.get("embeddings") is not None else None
-    hits = _hits(res["documents"][0], res["metadatas"][0], embeddings, expand=config.PARENT_EXPANSION)
-    distances = (res.get("distances") or [[]])[0]
-    if len(hits) == len(distances):  # (parent expansion can drop duplicates; then distances don't line up)
-        for h, d in zip(hits, distances):
-            h["distance"] = float(d)
-    return hits
+    hits = _hits(res["documents"][0], res["metadatas"][0], embeddings)
+    for h, d in zip(hits, (res.get("distances") or [[]])[0]):
+        h["distance"] = float(d)
+    return expand_parents(hits) if (config.PARENT_EXPANSION if expand is None else expand) else hits
 
 
 def get_all_chunks(doc_id: str) -> List[Hit]:

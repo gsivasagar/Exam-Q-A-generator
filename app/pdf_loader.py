@@ -58,7 +58,7 @@ def chunk_text(text: str, chunk_size: int = 300, overlap: int = 50) -> List[str]
     return chunks
 
 
-def chunks_from_pages(pages: List[str], *, chunk_size: int = 300, overlap: int = 50,
+def chunks_from_pages(pages: List[str], *, chunk_size: Optional[int] = None, overlap: Optional[int] = None,
                       mode: Optional[str] = None, paged: bool = True) -> List[Chunk]:
     """Chunk already-extracted page texts (possibly returning an empty list).
 
@@ -67,9 +67,12 @@ def chunks_from_pages(pages: List[str], *, chunk_size: int = 300, overlap: int =
     first page and `page_end` the last when different.
     With paged=False (Word, Markdown, text, web pages) there is no real page number: chunks get page 0,
     which the app treats as "no page"."""
+    chunk_size = chunk_size or config.CHUNK_WORDS
+    overlap = config.CHUNK_OVERLAP_WORDS if overlap is None else overlap
     if (mode or config.CHUNKING) == "structured":
         chunks = [Chunk(c["text"], c["page"], c["heading"], c["page_end"] if c["page_end"] != c["page"] else None)
-                  for c in structured_chunks(pages, config.CHUNK_TARGET_TOKENS, config.CHUNK_OVERLAP_TOKENS)]
+                  for c in structured_chunks(pages, config.CHUNK_TARGET_TOKENS, config.CHUNK_OVERLAP_TOKENS,
+                                             config.CHUNK_MIN_TOKENS)]
     else:
         chunks = [Chunk(text, page_no) for page_no, page_text in enumerate(pages, 1)
                   for text in chunk_text(page_text or "", chunk_size, overlap)]
@@ -81,7 +84,7 @@ def chunks_from_pages(pages: List[str], *, chunk_size: int = 300, overlap: int =
 _NO_TEXT = "No text found in this PDF. It may be a scanned document without a text layer."
 
 
-def load_pdf(source: Union[str, Path, BinaryIO], *, chunk_size: int = 300, overlap: int = 50,
+def load_pdf(source: Union[str, Path, BinaryIO], *, chunk_size: Optional[int] = None, overlap: Optional[int] = None,
              mode: Optional[str] = None, ocr=None) -> List[Chunk]:
     """Read a PDF (path or file-like) and return page-tagged text chunks (see `chunks_from_pages`).
 
