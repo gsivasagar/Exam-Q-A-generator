@@ -358,7 +358,7 @@ measurements to prove it.
 - [x] 2 LLM quick wins (live Ollama/Gemini runs and grading-repeatability measurement still pending: need a model)
 - [x] 3 Pipeline refactor
 - [x] 4 Coverage-aware selection (measured with a stub LLM; question-quality effect needs a live model)
-- [ ] 5 Embedder upgrade
+- [x] 5 Embedder upgrade (mechanism done; choosing the best model by recall@k is pending Phase 1)
 - [ ] 6 Chunking upgrade
 - [ ] 7 Hybrid retrieval + reranker
 - [ ] 8 Adaptive router

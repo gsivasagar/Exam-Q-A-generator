@@ -54,3 +54,19 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
   coverage the biggest win; fallback keeps an escape hatch.
 - **Falls back to random when embeddings are missing or the document has <= one batch of chunks.** Why:
   clustering cannot help there and short documents are the common case.
+
+## Phase 5: embedder upgrade
+- **Built the mechanism but kept `default` (MiniLM) as the default model.** Why: the plan says choose by
+  recall@k on a labelled set, which needs Ollama and the Phase 1 harness. Switching the default without
+  a measurement would be a guess. After Phase 1 runs, change `EMBEDDING_MODEL`'s default in `config.py`.
+- **`ollama:<model>` spec string instead of separate provider/model settings.** Why: one env var, easy to
+  extend (`gemini:...`) later, and the collection name derives from it.
+- **One Chroma collection per embedder; default keeps the old name `exam_chunks`.** Why: vectors from
+  different models have different sizes, so mixing would crash or silently corrupt retrieval; keeping
+  the old name means existing stores need no migration.
+- **Own `OllamaEmbedder` (using the `ollama` client) rather than Chroma's built-in Ollama function.**
+  Why: reuses our timeout/host config, gives friendly `EmbeddingError` (a subclass of `LLMError`, so the
+  UI's existing error handling shows "is Ollama running / ollama pull X"), and is testable with a fake client.
+- **Replaced `lru_cache` on `_collection()` with a cache keyed by (path, embedder).** Why: the old
+  zero-argument cache silently reused a stale store if the directory or embedder changed (issue #3 from
+  the review). `cache_clear` is re-exported so existing test fixtures keep working.

@@ -56,6 +56,8 @@ If you prefer running without Docker:
 ## 🔧 Configuration
 *   **Model**: Defaults to `gemma3:latest`. Change `OLLAMA_MODEL` in `docker-compose.yml` or `.env` to use a different model.
 *   **Ollama URL**: Defaults to `http://localhost:11434`.
+*   **Embedding model**: `EMBEDDING_MODEL` is `default` (built-in MiniLM, no setup) or `ollama:<model>`, e.g. `ollama:bge-m3` or `ollama:nomic-embed-text` (run `ollama pull <model>` first). Each embedder uses its own vector store, so switching never mixes vectors.
+*   **Chunk selection**: `SELECTION_STRATEGY=coverage` (default) or `random`.
 
 ## 🧪 Development
 ```bash

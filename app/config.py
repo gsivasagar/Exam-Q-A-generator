@@ -24,6 +24,9 @@ OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "0")) or None  # unset = Ollama
 GEMINI_THINKING_BUDGET = (int(os.environ["GEMINI_THINKING_BUDGET"])
                           if os.getenv("GEMINI_THINKING_BUDGET", "").strip() else None)
 
+# Embedding model: "default" (Chroma MiniLM) or "ollama:<model>" e.g. ollama:bge-m3
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "default").strip()
+
 # How chunks are chosen for each LLM call: "coverage" (cluster, then round-robin) or "random".
 SELECTION_STRATEGY = os.getenv("SELECTION_STRATEGY", "coverage").strip().lower()
 

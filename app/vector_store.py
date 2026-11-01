@@ -6,21 +6,28 @@ from functools import lru_cache
 from typing import Dict, List, Optional
 
 from . import config
+from .embeddings import collection_name, get_embedding_function
 from .pdf_loader import Chunk
 
 Hit = Dict  # {"text", "source", "page"}
 
 
-@lru_cache(maxsize=1)
-def _collection():
+@lru_cache(maxsize=4)
+def _open(path: str, spec: str):
     import chromadb
-    # Chroma's built-in ONNX build of all-MiniLM-L6-v2: same model as before,
-    # but no torch / sentence-transformers dependency.
-    from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
-    ef = DefaultEmbeddingFunction()
-    client = chromadb.PersistentClient(path=config.CHROMA_DIR)
-    return client.get_or_create_collection(name="exam_chunks", embedding_function=ef)
+    client = chromadb.PersistentClient(path=path)
+    return client.get_or_create_collection(name=collection_name(spec),
+                                           embedding_function=get_embedding_function(spec))
+
+
+def _collection():
+    """The collection for the *current* config. Cached per (path, embedder), so changing either
+    at runtime opens the right store instead of silently reusing a stale one."""
+    return _open(config.CHROMA_DIR, config.EMBEDDING_MODEL)
+
+
+_collection.cache_clear = _open.cache_clear  # type: ignore[attr-defined]  # tests/fixtures reset the cache
 
 
 def file_hash(data: bytes) -> str:
