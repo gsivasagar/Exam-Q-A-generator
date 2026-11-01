@@ -20,6 +20,21 @@ dependencies = { file = ["requirements.txt"] }
 testpaths = ["tests"]
 pythonpath = ["."]
 
+[tool.mypy]
+files = ["app"]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 92
+show_missing = true
+skip_covered = true
+
 [tool.ruff]
 line-length = 120
 target-version = "py311"

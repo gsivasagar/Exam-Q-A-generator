@@ -5,13 +5,30 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      # Persist only app data (vector store + results DB), not the whole repo
-      - ./data:/app/data
+      # Named volume: works on every OS without file-permission problems for the non-root container user.
+      # (To keep data in ./data instead, use "./data:/app/data" and `chown -R 1000 data` on Linux.)
+      - exam_data:/app/data
     environment:
       - DATA_DIR=/app/data
-      # Connect to host's Ollama instance
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      # - OLLAMA_MODEL=gemma3:latest # Uncomment to override model
+      # Default: the Ollama running on your computer. With `--profile ollama`, set OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:latest}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     extra_hosts:
       # Lets Linux resolve host.docker.internal (harmless on Mac/Windows)
       - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # Optional: run Ollama in Docker too.   docker compose --profile ollama up --build
+  # then:  docker compose exec ollama ollama pull gemma3
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    container_name: exam-qa-ollama
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  exam_data:
+  ollama_models:

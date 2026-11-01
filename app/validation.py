@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import random
 import re
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 N_OPTIONS = 4
 
@@ -99,7 +99,7 @@ def validate_pairs(items: list, hits: Optional[Sequence[dict]] = None, qtype: st
         a = str(it.get("answer", "")).strip()
         if not q or not a:
             continue
-        pair = {"question": q, "answer": a, "type": "short",
+        pair: Dict[str, Any] = {"question": q, "answer": a, "type": "short",
                 "topic": str(it.get("topic") or "General").strip() or "General",
                 "source": None, "page": None}
         expl = str(it.get("explanation") or "").strip()
@@ -127,7 +127,7 @@ def validate_pairs(items: list, hits: Optional[Sequence[dict]] = None, qtype: st
             random.shuffle(options)
             pair.update(type="mcq", options=options, answer=correct)
         try:
-            idx = int(it.get("chunk")) - 1
+            idx = int(it.get("chunk") or 0) - 1  # missing/0 -> -1 (no citation)
         except (TypeError, ValueError):
             idx = -1
         if hits and 0 <= idx < len(hits):

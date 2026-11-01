@@ -29,7 +29,7 @@ def next_request(quota: Dict[str, int], pairs: List[Dict], failed: Set[str]) -> 
             deficit[t] = missing
     if not deficit:
         return None
-    qtype = max(deficit, key=deficit.get)
+    qtype = max(deficit, key=lambda t: deficit[t])
     return qtype, deficit[qtype]
 
 

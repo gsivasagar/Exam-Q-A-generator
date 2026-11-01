@@ -88,12 +88,16 @@ def read_docx(data: bytes) -> List[str]:
 def read_pptx(data: bytes) -> List[str]:
     """One string per slide, in slide order; the title shape comes first."""
     zf = zipfile.ZipFile(io.BytesIO(data))
-    slides = sorted((n for n in zf.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
-                    key=lambda n: int(re.search(r"(\d+)", n.rsplit("/", 1)[1]).group(1)))
+    def slide_number(name: str) -> int:
+        m = re.search(r"(\d+)", name.rsplit("/", 1)[1])
+        return int(m.group(1)) if m else 0
+
+    slides = sorted((n for n in zf.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)), key=slide_number)
     out = []
     for name in slides:
         root = ET.fromstring(_safe_read(zf, name))
-        title, body = [], []
+        title: List[str] = []
+        body: List[str] = []
         for sp in root.iter(f"{_P}sp"):
             ph = sp.find(f"{_P}nvSpPr/{_P}nvPr/{_P}ph")
             is_title = ph is not None and ph.get("type") in ("title", "ctrTitle")
@@ -155,7 +159,7 @@ def html_to_text(html: str) -> str:
 
 
 # ---------- URLs ----------
-def check_url(url: str, resolver: Callable[[str], List[str]] = None) -> str:
+def check_url(url: str, resolver: Optional[Callable[[str], List[str]]] = None) -> str:
     """Allow only http(s) URLs whose host resolves to public addresses (blocks localhost, private networks
     and cloud-metadata addresses, so the server cannot be used to reach internal services)."""
     parsed = urlparse(url.strip())
@@ -167,7 +171,7 @@ def check_url(url: str, resolver: Callable[[str], List[str]] = None) -> str:
 
     def resolve(h: str) -> List[str]:
         try:
-            return [info[4][0] for info in socket.getaddrinfo(h, None)]
+            return [str(info[4][0]) for info in socket.getaddrinfo(h, None)]
         except socket.gaierror as exc:
             raise UploadError(f"Could not find '{h}'.") from exc
 
@@ -179,8 +183,8 @@ def check_url(url: str, resolver: Callable[[str], List[str]] = None) -> str:
     return url.strip()
 
 
-def fetch_url(url: str, fetch: Callable[[str, int, float], Tuple[bytes, str]] = None,
-              resolver: Callable[[str], List[str]] = None) -> Tuple[bytes, str]:
+def fetch_url(url: str, fetch: Optional[Callable[[str, int, float], Tuple[bytes, str]]] = None,
+              resolver: Optional[Callable[[str], List[str]]] = None) -> Tuple[bytes, str]:
     """Download `url` after safety checks. Returns (bytes, content_type). `fetch` is injectable for tests."""
     check_url(url, resolver)
     limit = int(config.MAX_UPLOAD_MB * 1024 * 1024)

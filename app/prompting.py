@@ -1,7 +1,7 @@
 """Prompt and JSON-schema construction for question generation."""
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from .prompt_safety import neutralize_tags
 from .validation import N_OPTIONS
@@ -48,7 +48,7 @@ _MCQ_EXTRA = (f"- \"answer\" is the single correct answer. \"distractors\" are e
 
 
 def schema_for(qtype: str) -> dict:
-    props = {"question": {"type": "string"}, "answer": {"type": "string"},
+    props: Dict[str, Any] = {"question": {"type": "string"}, "answer": {"type": "string"},
              "topic": {"type": "string"}, "chunk": {"type": "integer"}, "explanation": {"type": "string"}}
     if qtype == "short":
         props["key_points"] = {"type": "array", "items": {"type": "string"}}

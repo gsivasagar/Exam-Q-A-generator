@@ -94,14 +94,15 @@ def structured_chunks(pages: Sequence[str], target_tokens: int = 400, overlap_to
     chunks: List[dict] = []
     cur: List[Tuple[int, str]] = []  # (page, sentence)
     cur_tokens = 0
-    cur_path = None
+    cur_path = ""
 
     def emit(sentences: List[Tuple[int, str]], path: str):
         chunks.append({"text": " ".join(s for _, s in sentences), "page": sentences[0][0],
                        "page_end": sentences[-1][0], "heading": path})
 
     def carry_over(sentences: List[Tuple[int, str]]) -> List[Tuple[int, str]]:
-        keep, tokens = [], 0
+        keep: List[Tuple[int, str]] = []
+        tokens = 0
         for p, s in reversed(sentences):
             t = estimate_tokens(s)
             if tokens + t > overlap_tokens:

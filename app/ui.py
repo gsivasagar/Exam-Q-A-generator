@@ -14,6 +14,7 @@ from app.database import delete_owner_data, load_results, store_results
 from app.exports import exam_pdf, to_anki_tsv, to_csv
 from app.grader import grade_all, regrade_failed
 from app.llm import LLMError, get_provider
+from app.logging_config import setup_logging
 from app.maintenance import cleanup_expired, forget_doc, register_doc
 from app.pdf_loader import EmptyPDFError
 from app.qa_generator import generate_qa_pairs, ingest_document, ingest_url
@@ -23,7 +24,7 @@ from app.report import build_pdf
 from app.srs import count_due, due_questions, record_results
 from app.vector_store import delete_doc
 
-logging.basicConfig(level=logging.INFO)
+setup_logging()
 
 st.set_page_config(page_title="Exam Q&A Generator", page_icon="📚", layout="wide")
 
@@ -167,9 +168,11 @@ if "qa_pairs" in st.session_state:
         try:
             llm = make_llm()
             bar = st.progress(0.0, text="Grading …")
+            def on_graded(done, total):
+                bar.progress(done / total, text=f"Graded {done}/{total}")
+
             results = grade_all(st.session_state.qa_pairs, answers, llm, workers=effective_workers(llm),
-                                on_progress=lambda done, total: bar.progress(done / total,
-                                                                             text=f"Graded {done}/{total}"))
+                                on_progress=on_graded)
             graded = [{**qa, "student": student, **res}
                       for qa, student, res in zip(st.session_state.qa_pairs, answers, results)]
             bar.empty()

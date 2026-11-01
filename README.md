@@ -33,7 +33,7 @@ The easiest way to run the application is with Docker.
 4.  **Open in Browser**:
     Go to [http://localhost:8501](http://localhost:8501)
 
-> **Tip**: The database and vector store are persisted in `./data` so you won't lose data when restarting the container.
+> **Tip**: The database and vector store live in the Docker volume `exam_data`, so they survive restarts and rebuilds. To run Ollama in Docker too: `docker compose --profile ollama up --build`, set `OLLAMA_BASE_URL=http://ollama:11434`, then `docker compose exec ollama ollama pull gemma3`. See `docs/ARCHITECTURE.md` and `CONTRIBUTING.md` for more.
 
 ## 🛠 Manual Installation
 

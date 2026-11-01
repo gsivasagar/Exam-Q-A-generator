@@ -6,7 +6,7 @@ This module orchestrates the pipeline; the pieces live in `selection` (which chu
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, List, Optional, Sequence, Union
+from typing import Callable, Dict, List, Optional, Sequence, Set, Union
 
 from .dedupe import dedupe, semantic_dedupe
 from .embeddings import get_embedding_function
@@ -111,7 +111,7 @@ def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
     else:
         chunks, per_call, max_chars = make_cycler(hits, strategy), BATCH_SIZE, None
     pairs: List[Dict] = []
-    failed = set()  # types whose batches returned nothing; don't let them starve the others
+    failed: Set[str] = set()  # types whose batches returned nothing; don't let them starve the others
     workers = effective_workers(llm)
     rounds, limit = 0, max_rounds(n)
     while rounds < limit:

@@ -239,3 +239,30 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
   created and forgotten when explicitly deleted.
 - **Moved the history sidebar blocks to the end of the script.** Streamlit draws top to bottom, so a list
   built before the quiz is created is stale until the next click (caught by a failing test).
+
+## Phase 14: DevOps and hardening
+- **Actually built and ran the image instead of only writing it.** Docker Desktop was installed but stopped; I
+  started it. This found a real problem (below) that reading the Dockerfile would not have. I removed my test
+  images afterwards and left the pre-existing `exam-qa-generator-app` image alone.
+- **Baked the embedding model (~80 MB) into the image.** Why: without it, the first upload in a fresh container
+  waited 120 s for a download (slow connection here) and failed completely without internet. After baking it in,
+  ingestion took 1.4 s with the network disabled. Cost: image +180 MB after deleting the leftover `.tar.gz`; it
+  is still smaller than the old image.
+- **Dropped `build-essential` and `curl` and ran as a non-root user.** Why: the pinned wheels install without a
+  compiler (the build succeeded), curl was only used by the health check (replaced with a Python one-liner), and
+  non-root limits damage if the app is compromised.
+- **Pinned dependencies in `requirements.lock`, used only by Docker.** `requirements.txt` stays the human-edited
+  source with loose bounds. The lock is compiled for Linux/Python 3.11. It is not used for local installs
+  because this Mac (Intel) has no wheel for the newest `onnxruntime` that the lock selects.
+- **Named volume for data instead of `./data`.** Why: a bind mount created by Docker on Linux is owned by root
+  and the non-root container user cannot write to it; a named volume avoids that on every OS. Documented how to
+  switch back.
+- **mypy is blocking in CI with `ignore_missing_imports`.** Why: the 23 findings were small and genuine
+  (implicit Optional defaults, an unchecked regex match, untyped containers), so fixing them was cheaper than
+  carrying an exemption. Strict mode was not enabled.
+- **Coverage floor 92%, with current 94.6%.** Why: a floor a couple of points below reality catches
+  regressions without failing on noise.
+- **Docker job runs only on pushes to main.** Why: the build takes ~5 minutes and would slow every PR.
+- **The scheduled evaluation workflow is created together with the evaluation harness (Phase 1)** because it
+  has nothing to run until then.
+- **Did not add a LICENSE.** Choosing one is the owner's decision.
