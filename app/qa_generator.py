@@ -7,16 +7,18 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Callable, Dict, List, Optional, Sequence, Union
 
 from .dedupe import dedupe
 from .llm import LLMProvider
 from .pdf_loader import load_pdf
 from .planning import BATCH_SIZE, QUESTION_TYPES, max_rounds, next_request, trim_to_quota, type_quota
 from .prompting import MAX_CONTEXT_CHARS, build_prompt, schema_for
-from .selection import CHUNKS_PER_BATCH, gather, make_cycler, normalize_topics
+from . import config
+from .router import FULL, choose_path, context_budget
+from .selection import CHUNKS_PER_BATCH, FullContextCycler, gather, make_cycler, normalize_topics
 from .validation import N_OPTIONS, extract_json_array, match_option, validate_pairs
-from .vector_store import add_chunks, file_hash
+from .vector_store import add_chunks, file_hash, get_all_chunks
 
 log = logging.getLogger(__name__)
 
@@ -37,8 +39,9 @@ def ingest_pdf(source, doc_id: str, filename: str = "upload.pdf", data: Optional
     return add_chunks(chunks, doc_id, source=filename, file_id=file_hash(data))
 
 
-def _generate_batch(llm: LLMProvider, hits: List[dict], n: int, topic: Optional[str], qtype: str) -> List[Dict]:
-    prompt = build_prompt(hits, n, topic, qtype)
+def _generate_batch(llm: LLMProvider, hits: List[dict], n: int, topic: Optional[str], qtype: str,
+                    max_chars: Optional[int] = None) -> List[Dict]:
+    prompt = build_prompt(hits, n, topic, qtype, max_chars)
     for attempt in (1, 2):  # one retry on unparseable output
         raw = llm.generate(prompt, schema=schema_for(qtype))
         log.debug("LLM raw response: %s", raw)
@@ -51,25 +54,37 @@ def _generate_batch(llm: LLMProvider, hits: List[dict], n: int, topic: Optional[
 
 def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
                       topic: Union[None, str, Sequence[str]] = None,
-                      question_type: str = "short", strategy: Optional[str] = None) -> List[Dict]:
+                      question_type: str = "short", strategy: Optional[str] = None,
+                      on_route: Optional[Callable[[str], None]] = None) -> List[Dict]:
     """Generate up to n validated, de-duplicated questions in batches drawn from
     different chunks. `topic` may be one string or a list of topics.
     question_type: "short", "mcq", or "mixed" (alternates batches).
-    strategy: how chunks are chosen, "coverage" or "random" (default from SELECTION_STRATEGY)."""
+    strategy: how chunks are chosen, "coverage" or "random" (default from SELECTION_STRATEGY).
+    on_route: optional callback told which path was used ("full", "topic" or "coverage")."""
     if question_type not in QUESTION_TYPES:
         raise ValueError(f"question_type must be one of {QUESTION_TYPES}")
     topics = normalize_topics(topic)
     topic_text = ", ".join(topics) or None
 
-    hits = gather(doc_id, topics)
-    if not hits:
-        if topics:
-            raise ValueError(f"The topic '{topic_text}' was not found in your notes. "
-                             "Try a different topic, or leave it empty to cover everything.")
+    all_hits = get_all_chunks(doc_id)
+    if not all_hits:
         raise ValueError(f"No content found for document set: {doc_id}")
+    budget = context_budget(llm)
+    path = choose_path(all_hits, topics, budget)
+    # A topic must still exist in the notes; retrieval doubles as that relevance check.
+    hits = gather(doc_id, topics) if topics else all_hits
+    if topics and not hits:
+        raise ValueError(f"The topic '{topic_text}' was not found in your notes. "
+                         "Try a different topic, or leave it empty to cover everything.")
+    log.info("Quiz routing: %s path (%d chunks, budget %d chars)", path, len(all_hits), budget)
+    if on_route:
+        on_route(path)
 
     quota = type_quota(question_type, n)
-    chunks = make_cycler(hits, strategy)
+    if path == FULL:
+        chunks, per_call, max_chars = FullContextCycler(all_hits), config.FULL_CONTEXT_BATCH, budget
+    else:
+        chunks, per_call, max_chars = make_cycler(hits, strategy), BATCH_SIZE, None
     pairs: List[Dict] = []
     failed = set()  # types whose batches returned nothing; don't let them starve the others
     for _ in range(max_rounds(n)):
@@ -77,7 +92,8 @@ def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
         if request is None:
             break
         qtype, shortfall = request
-        new = _generate_batch(llm, chunks.next_batch(), min(BATCH_SIZE, shortfall + 1), topic_text, qtype)
+        new = _generate_batch(llm, chunks.next_batch(), min(per_call, shortfall + 1), topic_text, qtype,
+                              max_chars)
         if not new:
             failed.add(qtype)
         pairs = dedupe(pairs + new)

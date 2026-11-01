@@ -58,7 +58,8 @@ question_type = TYPE_LABELS[st.radio("Question type", list(TYPE_LABELS), horizon
 
 def start_quiz(doc_id, n, topic, qtype):
     """Generate a quiz from an already-ingested document set and put it in session state."""
-    qa_pairs = generate_qa_pairs(doc_id, make_llm(), n=n, topic=topic, question_type=qtype)
+    qa_pairs = generate_qa_pairs(doc_id, make_llm(), n=n, topic=topic, question_type=qtype,
+                                 on_route=lambda path: st.session_state.__setitem__("route", path))
     st.session_state.doc_id = doc_id
     st.session_state.quiz_id = str(uuid.uuid4())
     st.session_state.qa_pairs = qa_pairs
@@ -91,6 +92,11 @@ if uploaded_files and st.button("Create Quiz"):
 # ───────────── Take the quiz ─────────────
 if "qa_pairs" in st.session_state:
     st.header("📝 Take the quiz")
+    ROUTE_NOTES = {"full": "Questions use your whole document.",
+                   "topic": "Questions use the parts of your notes that match the topic.",
+                   "coverage": "Questions are spread across your whole document."}
+    if st.session_state.get("route") in ROUTE_NOTES:
+        st.caption(ROUTE_NOTES[st.session_state["route"]])
     with st.form("quiz_form"):
         answers = []
         for idx, qa in enumerate(st.session_state.qa_pairs, 1):

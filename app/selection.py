@@ -107,3 +107,13 @@ def make_cycler(hits: List[dict], strategy: Optional[str] = None):
             and all(h.get("embedding") is not None for h in hits)):
         return CoverageCycler(hits)
     return BatchCycler(hits)
+
+
+class FullContextCycler:
+    """Router path "full": every call sees the whole document, in reading order."""
+
+    def __init__(self, hits: List[dict]):
+        self.hits = hits
+
+    def next_batch(self) -> List[dict]:
+        return list(self.hits)

@@ -107,3 +107,19 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
   retrieval evaluation needs only embeddings (not an LLM), so it can run offline and decide.
 - **"Topic not found" only triggers when `RETRIEVAL_MAX_DISTANCE` is set.** Why: a sensible threshold depends
   on the embedder and must be calibrated on data; guessing one could wrongly reject valid topics.
+
+## Phase 8: adaptive router
+- **Routing is on by default (`ADAPTIVE_ROUTING=on`) but `FULL_CONTEXT_BATCH` defaults to 5 (no change).**
+  Why: sending the whole document is low-risk and fixes real omissions (a 5-chunk document lost 1 chunk per
+  call). Asking a small local model for 10 questions per call is a quality risk I cannot measure offline, so
+  that stays opt-in. Reverse routing with `ADAPTIVE_ROUTING=off`.
+- **Budget is per provider, not global.** Ollama's default window is small, so the default stays at the old
+  6,000-character cap unless `OLLAMA_NUM_CTX` is set; Gemini declares 120,000 characters (its window is far
+  larger, so this only bounds cost/latency). A fake or unknown provider falls back to the config default.
+- **Topic quizzes on short documents run retrieval first as a relevance check, then use the full text.**
+  Why: Phase 7 promised that a topic absent from the notes fails gracefully; routing straight to "full"
+  would have silently dropped that behaviour (my first test caught the conflict).
+- **Added an optional `on_route` callback and a one-line UI caption instead of a return-type change.** Why:
+  `generate_qa_pairs` returns a list that tests, UI and exports rely on; a callback is backward compatible.
+- **Honest limit:** the router decides on characters, not tokens (about 4 chars/token); fine for sizing, but
+  not exact for CJK or code-heavy text.

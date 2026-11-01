@@ -104,6 +104,8 @@ class OllamaProvider(_BaseProvider):
 
         self.model = model or config.OLLAMA_MODEL
         self.num_ctx = num_ctx if num_ctx is not None else config.OLLAMA_NUM_CTX
+        # ~3 chars/token, leaving a third of the window for instructions and the answer
+        self.context_chars = int(self.num_ctx * 2) if self.num_ctx else None
         self._client = Client(host=host or config.OLLAMA_URL,
                               timeout=timeout if timeout is not None else config.LLM_TIMEOUT)
 
@@ -142,6 +144,7 @@ class GeminiProvider(_BaseProvider):
         from google import genai
 
         self.model = model or config.GEMINI_MODEL
+        self.context_chars = config.GEMINI_CONTEXT_CHARS
         self.thinking_budget = (thinking_budget if thinking_budget is not None
                                 else config.GEMINI_THINKING_BUDGET)
         self._client = genai.Client(api_key=api_key)

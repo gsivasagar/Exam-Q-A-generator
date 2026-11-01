@@ -10,6 +10,8 @@ OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:latest")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+# Characters of notes we will put in one Gemini call (its window is far larger; this bounds cost/latency).
+GEMINI_CONTEXT_CHARS = int(os.getenv("GEMINI_CONTEXT_CHARS", "120000"))
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 CHROMA_DIR = os.getenv("CHROMA_PERSIST_DIR", str(DATA_DIR / "chroma"))
@@ -45,5 +47,11 @@ RERANKER = os.getenv("RERANKER", "none").strip()
 RERANK_CANDIDATES = int(os.getenv("RERANK_CANDIDATES", "20"))
 RETRIEVAL_MAX_DISTANCE = (float(os.environ["RETRIEVAL_MAX_DISTANCE"])
                           if os.getenv("RETRIEVAL_MAX_DISTANCE", "").strip() else None)
+
+# Adaptive routing: when the whole document fits the context budget, send all of it instead of
+# selecting chunks. FULL_CONTEXT_BATCH is how many questions to ask per call in that mode.
+ADAPTIVE_ROUTING = os.getenv("ADAPTIVE_ROUTING", "on").strip().lower() in {"1", "true", "yes", "on"}
+FULL_CONTEXT_MAX_CHARS = int(os.getenv("FULL_CONTEXT_MAX_CHARS", "6000"))
+FULL_CONTEXT_BATCH = int(os.getenv("FULL_CONTEXT_BATCH", "5"))
 
 PASS_THRESHOLD = 0.6

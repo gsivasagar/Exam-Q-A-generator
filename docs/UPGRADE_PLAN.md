@@ -361,7 +361,7 @@ measurements to prove it.
 - [x] 5 Embedder upgrade (mechanism done; choosing the best model by recall@k is pending Phase 1)
 - [x] 6 Chunking upgrade (behind `CHUNKING=structured`; default stays `legacy` until the eval shows it helps)
 - [x] 7 Hybrid retrieval + reranker (behind flags; defaults chosen with the Phase 1 retrieval eval)
-- [ ] 8 Adaptive router
+- [x] 8 Adaptive router
 - [ ] 9 Verifier, difficulty, explanations
 - [ ] 10 Concurrency, caching, progress
 - [ ] 11 Grading upgrade
