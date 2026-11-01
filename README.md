@@ -44,7 +44,7 @@ If you prefer running without Docker:
     python -m venv .venv
     source .venv/bin/activate  # On Windows: .venv\Scripts\activate
     ```
-2.  **Install the project** (this also makes the `app` package importable):
+2.  **Install the project** (optional; `streamlit run app/ui.py` also works without it):
     ```bash
     pip install -e .
     ```

@@ -143,3 +143,18 @@ def test_retry_ungraded_answers(store, tmp_path, monkeypatch):
     assert not at.exception, at.exception
     assert all(g["score"] == 0.8 and not g.get("error") for g in at.session_state["graded"])
     assert not any("Retry ungraded" in b.label for b in at.button)  # nothing left to retry
+
+
+def test_app_starts_without_pythonpath_or_install(tmp_path):
+    """Regression: Streamlit Cloud runs `streamlit run app/ui.py` with nothing installed and no PYTHONPATH,
+    which failed with "No module named 'app'". -I ignores PYTHONPATH and the current directory."""
+    import subprocess
+    import sys
+    root = Path(__file__).resolve().parent.parent
+    code = ("from streamlit.testing.v1 import AppTest\n"
+            f"at = AppTest.from_file({str(root / 'app' / 'ui.py')!r}, default_timeout=60)\n"
+            "at.run()\n"
+            "print('EXC', [str(e.value)[:80] for e in at.exception])\n")
+    r = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, cwd=tmp_path,
+                       env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path), "DATA_DIR": str(tmp_path / "data")})
+    assert "EXC []" in r.stdout, (r.stdout + r.stderr)[-600:]
