@@ -13,6 +13,23 @@ _SHORT_FORMAT = ('{"questions": [{"question": "What is ...?", "answer": "...", '
 _MCQ_FORMAT = ('{"questions": [{"question": "Which ...?", "answer": "the correct answer", '
                '"distractors": ["wrong 1", "wrong 2", "wrong 3"], "topic": "ShortTopicName", "chunk": 1}]}')
 
+_TF_FORMAT = ('{"questions": [{"question": "A statement taken from or contradicting the passage.", '
+              '"answer": "True", "explanation": "one sentence why", "topic": "ShortTopicName", "chunk": 1}]}')
+_CLOZE_FORMAT = ('{"questions": [{"question": "The ___ produces ATP in the cell.", "answer": "mitochondria", '
+                 '"explanation": "one sentence why", "topic": "ShortTopicName", "chunk": 1}]}')
+
+DIFFICULTIES = ("easy", "medium", "hard")
+_DIFFICULTY_TEXT = {
+    "easy": "Difficulty: easy. Ask direct recall questions about facts stated explicitly in the passages.",
+    "medium": "Difficulty: medium. Ask questions that need understanding, not just recall (explain, compare, why).",
+    "hard": "Difficulty: hard. Ask questions that require applying or combining ideas from the passages.",
+}
+_TF_EXTRA = ('- Write each question as one self-contained statement. "answer" is exactly True or False. '
+             "Make about half of the statements false by changing one key fact.\n")
+_CLOZE_EXTRA = ('- "question" is one sentence from the passages with ONE key term replaced by ___ . '
+                '"answer" is the missing term only.\n')
+_EXPLAIN_EXTRA = '- Add "explanation": one short sentence saying why the answer is right, based on the passage.\n'
+
 _PROMPT = """You are a professional exam tutor. Based ONLY on the numbered context passages \
 below, generate exam questions.
 
@@ -30,7 +47,7 @@ _MCQ_EXTRA = (f"- \"answer\" is the single correct answer. \"distractors\" are e
 
 def schema_for(qtype: str) -> dict:
     props = {"question": {"type": "string"}, "answer": {"type": "string"},
-             "topic": {"type": "string"}, "chunk": {"type": "integer"}}
+             "topic": {"type": "string"}, "chunk": {"type": "integer"}, "explanation": {"type": "string"}}
     required = ["question", "answer", "topic", "chunk"]
     if qtype == "mcq":
         props["distractors"] = {"type": "array", "items": {"type": "string"}}
@@ -54,9 +71,12 @@ def build_context(hits: List[dict], max_chars: Optional[int] = None) -> str:
 
 
 def build_prompt(hits: List[dict], n: int, topic: Optional[str], qtype: str,
-                 max_chars: Optional[int] = None) -> str:
+                 max_chars: Optional[int] = None, difficulty: Optional[str] = None) -> str:
     instruction = (f"Generate {n} question-answer pairs focused on: {topic}."
                    if topic else f"Generate {n} varied exam-style question-answer pairs.")
-    system = _PROMPT.format(fmt=_MCQ_FORMAT if qtype == "mcq" else _SHORT_FORMAT,
-                            extra=_MCQ_EXTRA if qtype == "mcq" else "")
+    if difficulty in _DIFFICULTY_TEXT:
+        instruction += "\n" + _DIFFICULTY_TEXT[difficulty]
+    fmt, extra = {"mcq": (_MCQ_FORMAT, _MCQ_EXTRA), "tf": (_TF_FORMAT, _TF_EXTRA),
+                  "cloze": (_CLOZE_FORMAT, _CLOZE_EXTRA)}.get(qtype, (_SHORT_FORMAT, ""))
+    system = _PROMPT.format(fmt=fmt, extra=extra + _EXPLAIN_EXTRA)
     return f"{system}\n{instruction}\n\n<context>\n{build_context(hits, max_chars)}</context>"

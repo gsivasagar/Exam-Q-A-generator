@@ -54,4 +54,10 @@ ADAPTIVE_ROUTING = os.getenv("ADAPTIVE_ROUTING", "on").strip().lower() in {"1", 
 FULL_CONTEXT_MAX_CHARS = int(os.getenv("FULL_CONTEXT_MAX_CHARS", "6000"))
 FULL_CONTEXT_BATCH = int(os.getenv("FULL_CONTEXT_BATCH", "5"))
 
+# Question quality. VERIFY_QUESTIONS adds a second LLM pass that drops questions the cited passage does
+# not support (extra calls). SEMANTIC_DEDUPE drops paraphrases using embedding similarity.
+VERIFY_QUESTIONS = os.getenv("VERIFY_QUESTIONS", "off").strip().lower() in {"1", "true", "yes", "on"}
+SEMANTIC_DEDUPE = os.getenv("SEMANTIC_DEDUPE", "off").strip().lower() in {"1", "true", "yes", "on"}
+SEMANTIC_DEDUPE_THRESHOLD = float(os.getenv("SEMANTIC_DEDUPE_THRESHOLD", "0.85"))
+
 PASS_THRESHOLD = 0.6

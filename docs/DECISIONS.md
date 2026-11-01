@@ -123,3 +123,24 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
   `generate_qa_pairs` returns a list that tests, UI and exports rely on; a callback is backward compatible.
 - **Honest limit:** the router decides on characters, not tokens (about 4 chars/token); fine for sizing, but
   not exact for CJK or code-heavy text.
+
+## Phase 9: question quality
+- **Verifier is off by default and fails open.** Why: it adds an LLM call per batch (cost/latency unmeasured),
+  and a flaky verifier must never empty a quiz. If its reply is unusable or the call fails, all questions
+  are kept. Questions with no cited passage are kept too (nothing to check them against).
+- **Verifier runs per batch inside `_generate_batch`, where the cited passage text is available.** Why:
+  verifying after the fact would need to carry passage text through the whole pipeline. The citation index
+  travels as an internal `_chunk` key and is stripped before results are returned, so no downstream code
+  (DB, UI, PDF export) sees it. `validate_pairs` only keeps it when asked, so existing callers are unchanged.
+- **True/false is its own type `tf` that reuses the multiple-choice UI and grading** (two options, graded
+  deterministically, no LLM call). Why: cheapest to build, no new grading path, and offline-testable.
+- **Cloze is graded by the LLM like short answers.** Why: exact string match would fail on synonyms or
+  inflection ("mitochondria" vs "mitochondrion"). Cost: one grading call per cloze question.
+- **`explanation` is optional in the schema (not in `required`).** Why: weaker local models may omit it; a
+  required field would make their whole reply invalid and lower the valid-question rate.
+- **Semantic dedupe stays off; default threshold lowered from 0.9 to 0.85.** Why: a quick test with the real
+  embedder showed 0.9 catches only 3 of 8 paraphrases while 0.85 catches 7 of 8, with the same single false
+  drop (templated questions such as "Who wrote Hamlet?" vs "Who wrote Macbeth?" score ~0.9). With only 16
+  pairs this is a hint, not proof, so it is left to the Phase 1 evaluation before enabling.
+- **`mixed` still means short + multiple-choice only.** Why: changing it would alter existing behaviour and
+  saved expectations; the new types are selected explicitly.

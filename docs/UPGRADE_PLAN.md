@@ -362,7 +362,7 @@ measurements to prove it.
 - [x] 6 Chunking upgrade (behind `CHUNKING=structured`; default stays `legacy` until the eval shows it helps)
 - [x] 7 Hybrid retrieval + reranker (behind flags; defaults chosen with the Phase 1 retrieval eval)
 - [x] 8 Adaptive router
-- [ ] 9 Verifier, difficulty, explanations
+- [x] 9 Verifier, difficulty, explanations (offline-tested; effect on real question quality needs a live model)
 - [ ] 10 Concurrency, caching, progress
 - [ ] 11 Grading upgrade
 - [ ] 12 Ingestion formats and OCR

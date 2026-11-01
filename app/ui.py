@@ -52,13 +52,16 @@ def make_llm():
 uploaded_files = st.file_uploader("Upload one or more study PDFs", type="pdf", accept_multiple_files=True)
 topic_filter = st.text_input("🔍 *Optional topic filter* – only generate questions about this topic")
 num_q = st.slider("Number of quiz questions", min_value=5, max_value=25, value=10)
-TYPE_LABELS = {"Short answer": "short", "Multiple choice": "mcq", "Mixed": "mixed"}
+TYPE_LABELS = {"Short answer": "short", "Multiple choice": "mcq", "Mixed": "mixed",
+               "True / False": "tf", "Fill in the blank": "cloze"}
 question_type = TYPE_LABELS[st.radio("Question type", list(TYPE_LABELS), horizontal=True)]
+DIFFICULTY_LABELS = {"Any": None, "Easy": "easy", "Medium": "medium", "Hard": "hard"}
+difficulty = DIFFICULTY_LABELS[st.radio("Difficulty", list(DIFFICULTY_LABELS), horizontal=True)]
 
 
-def start_quiz(doc_id, n, topic, qtype):
+def start_quiz(doc_id, n, topic, qtype, level=None):
     """Generate a quiz from an already-ingested document set and put it in session state."""
-    qa_pairs = generate_qa_pairs(doc_id, make_llm(), n=n, topic=topic, question_type=qtype,
+    qa_pairs = generate_qa_pairs(doc_id, make_llm(), n=n, topic=topic, question_type=qtype, difficulty=level,
                                  on_route=lambda path: st.session_state.__setitem__("route", path))
     st.session_state.doc_id = doc_id
     st.session_state.quiz_id = str(uuid.uuid4())
@@ -80,7 +83,7 @@ if uploaded_files and st.button("Create Quiz"):
         with st.spinner("Ingesting PDFs and generating questions – please wait …"):
             for f in uploaded_files:
                 ingest_pdf(None, doc_id, filename=f.name, data=f.getvalue())
-            start_quiz(doc_id, num_q, topic_filter.strip() or None, question_type)
+            start_quiz(doc_id, num_q, topic_filter.strip() or None, question_type, difficulty)
         st.success("Quiz ready! Scroll down to begin ⬇️")
     except EmptyPDFError as exc:
         delete_doc(doc_id)
@@ -102,7 +105,7 @@ if "qa_pairs" in st.session_state:
         for idx, qa in enumerate(st.session_state.qa_pairs, 1):
             st.subheader(f"Q{idx}: {qa['question']}")
             key = f"ans_{st.session_state.quiz_id}_{idx}"
-            if qa.get("type") == "mcq":
+            if qa.get("type") in ("mcq", "tf"):
                 answers.append(st.radio("Choose one", qa["options"], index=None, key=key) or "")
             else:
                 answers.append(st.text_area("Your answer", key=key))
@@ -146,6 +149,8 @@ if "graded" in st.session_state:
         st.markdown(f"**Feedback:** {g['feedback']}")
         with st.expander("Correct answer"):
             st.markdown(g["answer"])
+            if g.get("explanation"):
+                st.markdown(f"*{g['explanation']}*")
             if g.get("source"):
                 st.caption(f"📖 Source: {g['source']}" + (f", p.{g['page']}" if g.get("page") else ""))
         st.divider()
@@ -157,7 +162,7 @@ if "graded" in st.session_state:
     if topics and st.button("🎯 Practice my weak topics"):
         try:
             with st.spinner("Building a practice quiz …"):
-                start_quiz(st.session_state.doc_id, min(len(graded), 10), topics, question_type)
+                start_quiz(st.session_state.doc_id, min(len(graded), 10), topics, question_type, difficulty)
             st.rerun()
         except (LLMError, ValueError) as exc:
             st.error(str(exc))

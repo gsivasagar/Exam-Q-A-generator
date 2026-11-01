@@ -84,7 +84,7 @@ def grade_mcq(qa: Dict, student: str) -> Dict:
 
 def grade_question(qa: Dict, student: str, llm: LLMProvider) -> Dict:
     """Grade one answer, dispatching on question type."""
-    if qa.get("type") == "mcq":
+    if qa.get("type") in ("mcq", "tf"):
         return grade_mcq(qa, student)
     if not student.strip():
         return {"score": 0.0, "feedback": "No answer submitted."}

@@ -82,9 +82,15 @@ def build_options(item: dict, answer: str) -> Optional[List[str]]:
     return None
 
 
-def validate_pairs(items: list, hits: Optional[Sequence[dict]] = None, qtype: str = "short") -> List[Dict]:
-    """Keep only well-formed items. For MCQ: N_OPTIONS distinct options
-    (answer + distractors, shuffled). `chunk` is mapped back to source/page."""
+TF_ANSWERS = {"true": "True", "t": "True", "yes": "True", "false": "False", "f": "False", "no": "False"}
+_BLANK = re.compile(r"_{2,}|\[blank\]", re.I)
+
+
+def validate_pairs(items: list, hits: Optional[Sequence[dict]] = None, qtype: str = "short",
+                   keep_chunk: bool = False) -> List[Dict]:
+    """Keep only well-formed items. For MCQ: N_OPTIONS distinct options (answer + distractors, shuffled).
+    "tf": a statement answered True/False. "cloze": a sentence with a blank. `chunk` is mapped back to
+    source/page; with keep_chunk the 0-based index is kept as `_chunk` (used by the verifier, then dropped)."""
     good = []
     for it in items:
         if not isinstance(it, dict):
@@ -96,7 +102,19 @@ def validate_pairs(items: list, hits: Optional[Sequence[dict]] = None, qtype: st
         pair = {"question": q, "answer": a, "type": "short",
                 "topic": str(it.get("topic") or "General").strip() or "General",
                 "source": None, "page": None}
-        if qtype == "mcq":
+        expl = str(it.get("explanation") or "").strip()
+        if expl:
+            pair["explanation"] = expl
+        if qtype == "tf":
+            tf = TF_ANSWERS.get(a.strip().lower().rstrip("."))
+            if tf is None:
+                continue
+            pair.update(type="tf", options=["True", "False"], answer=tf)
+        elif qtype == "cloze":
+            if not _BLANK.search(q):
+                continue
+            pair["type"] = "cloze"
+        elif qtype == "mcq":
             options = build_options(it, a)
             if options is None:
                 continue
@@ -109,5 +127,7 @@ def validate_pairs(items: list, hits: Optional[Sequence[dict]] = None, qtype: st
             idx = -1
         if hits and 0 <= idx < len(hits):
             pair["source"], pair["page"] = hits[idx].get("source"), hits[idx].get("page")
+        if keep_chunk:
+            pair["_chunk"] = idx
         good.append(pair)
     return good

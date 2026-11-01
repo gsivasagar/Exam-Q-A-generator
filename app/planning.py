@@ -5,7 +5,7 @@ import random
 from typing import Dict, List, Optional, Set, Tuple
 
 BATCH_SIZE = 5  # questions requested per LLM call
-QUESTION_TYPES = ("short", "mcq", "mixed")
+QUESTION_TYPES = ("short", "mcq", "mixed", "tf", "cloze")
 
 
 def type_quota(question_type: str, n: int) -> Dict[str, int]:
