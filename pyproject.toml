@@ -52,3 +52,5 @@ select = ["E", "F"]
 [tool.ruff.lint.per-file-ignores]
 # Throwaway measurement scripts: keep app/ and tests/ strict, allow terse style here.
 "scripts/*" = ["E401", "E402", "E701", "E702", "E501"]
+# ui.py must adjust sys.path before importing the app package (see the comment at its top).
+"app/ui.py" = ["E402"]

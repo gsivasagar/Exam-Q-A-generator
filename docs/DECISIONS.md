@@ -314,3 +314,11 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
 ## Late refactor
 - **Split `generate_qa_pairs` again** (`_check_request`, `_choose_context`, `_fill_quota`; complexity 21 to 5). Proved
   identical output to the previous code on 9 seeded scenarios before keeping it.
+
+## Fix after review: "No module named 'app'" on Streamlit Cloud
+- **Restored a small `sys.path` bootstrap at the top of `ui.py`** (adds the repo root only if missing). Phase 0 had
+  removed it, relying on `pip install -e .` or `PYTHONPATH`. That works locally and in Docker, but Streamlit
+  Community Cloud only installs `requirements.txt` and runs `streamlit run app/ui.py`, so the deployed app crashed on
+  its first import. I had checked `/_stcore/health` and the tests (which set `pythonpath`), neither of which exercises
+  the real launch path. A regression test now starts the app with `python -I` (no PYTHONPATH, no current directory)
+  and fails without the fix. Lesson: test the way the app is actually launched on each host.
