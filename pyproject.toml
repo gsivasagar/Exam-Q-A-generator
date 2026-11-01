@@ -27,3 +27,7 @@ extend-exclude = [".venv", "tmp", "chroma_store", ".chromadb", "chroma_data", "d
 
 [tool.ruff.lint]
 select = ["E", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# Throwaway measurement scripts: keep app/ and tests/ strict, allow terse style here.
+"scripts/*" = ["E401", "E402", "E701", "E702", "E501"]

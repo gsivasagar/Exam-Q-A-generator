@@ -24,4 +24,7 @@ OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "0")) or None  # unset = Ollama
 GEMINI_THINKING_BUDGET = (int(os.environ["GEMINI_THINKING_BUDGET"])
                           if os.getenv("GEMINI_THINKING_BUDGET", "").strip() else None)
 
+# How chunks are chosen for each LLM call: "coverage" (cluster, then round-robin) or "random".
+SELECTION_STRATEGY = os.getenv("SELECTION_STRATEGY", "coverage").strip().lower()
+
 PASS_THRESHOLD = 0.6

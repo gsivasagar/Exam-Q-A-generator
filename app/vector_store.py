@@ -41,22 +41,28 @@ def add_chunks(chunks: List[Chunk], doc_id: str, source: str, file_id: str) -> i
     return len(chunks)
 
 
-def _hits(docs, metas) -> List[Hit]:
-    return [{"text": d, "source": (m or {}).get("source", ""), "page": (m or {}).get("page")}
+def _hits(docs, metas, embeddings=None) -> List[Hit]:
+    hits = [{"text": d, "source": (m or {}).get("source", ""), "page": (m or {}).get("page")}
             for d, m in zip(docs, metas)]
+    if embeddings is not None:
+        for h, e in zip(hits, embeddings):
+            h["embedding"] = e
+    return hits
 
 
 def similarity_search(query: str, k: int = 5, doc_id: Optional[str] = None) -> List[Hit]:
     kwargs = {"where": {"doc_id": doc_id}} if doc_id else {}
-    res = _collection().query(query_texts=[query], n_results=k, **kwargs)
+    res = _collection().query(query_texts=[query], n_results=k,
+                              include=["documents", "metadatas", "embeddings"], **kwargs)
     if not res["documents"]:
         return []
-    return _hits(res["documents"][0], res["metadatas"][0])
+    embeddings = res["embeddings"][0] if res.get("embeddings") is not None else None
+    return _hits(res["documents"][0], res["metadatas"][0], embeddings)
 
 
 def get_all_chunks(doc_id: str) -> List[Hit]:
-    res = _collection().get(where={"doc_id": doc_id})
-    return _hits(res["documents"], res["metadatas"])
+    res = _collection().get(where={"doc_id": doc_id}, include=["documents", "metadatas", "embeddings"])
+    return _hits(res["documents"], res["metadatas"], res.get("embeddings"))
 
 
 def delete_doc(doc_id: str) -> None:

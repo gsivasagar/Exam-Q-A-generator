@@ -357,7 +357,7 @@ measurements to prove it.
 - [ ] 1 Evaluation harness (fills all "not measured" baseline rows)
 - [x] 2 LLM quick wins (live Ollama/Gemini runs and grading-repeatability measurement still pending: need a model)
 - [x] 3 Pipeline refactor
-- [ ] 4 Coverage-aware selection
+- [x] 4 Coverage-aware selection (measured with a stub LLM; question-quality effect needs a live model)
 - [ ] 5 Embedder upgrade
 - [ ] 6 Chunking upgrade
 - [ ] 7 Hybrid retrieval + reranker

@@ -14,7 +14,7 @@ from .llm import LLMProvider
 from .pdf_loader import load_pdf
 from .planning import BATCH_SIZE, QUESTION_TYPES, max_rounds, next_request, trim_to_quota, type_quota
 from .prompting import MAX_CONTEXT_CHARS, build_prompt, schema_for
-from .selection import CHUNKS_PER_BATCH, BatchCycler, gather, normalize_topics
+from .selection import CHUNKS_PER_BATCH, gather, make_cycler, normalize_topics
 from .validation import N_OPTIONS, extract_json_array, match_option, validate_pairs
 from .vector_store import add_chunks, file_hash
 
@@ -51,10 +51,11 @@ def _generate_batch(llm: LLMProvider, hits: List[dict], n: int, topic: Optional[
 
 def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
                       topic: Union[None, str, Sequence[str]] = None,
-                      question_type: str = "short") -> List[Dict]:
+                      question_type: str = "short", strategy: Optional[str] = None) -> List[Dict]:
     """Generate up to n validated, de-duplicated questions in batches drawn from
     different chunks. `topic` may be one string or a list of topics.
-    question_type: "short", "mcq", or "mixed" (alternates batches)."""
+    question_type: "short", "mcq", or "mixed" (alternates batches).
+    strategy: how chunks are chosen, "coverage" or "random" (default from SELECTION_STRATEGY)."""
     if question_type not in QUESTION_TYPES:
         raise ValueError(f"question_type must be one of {QUESTION_TYPES}")
     topics = normalize_topics(topic)
@@ -65,7 +66,7 @@ def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
         raise ValueError(f"No content found for document set: {doc_id}")
 
     quota = type_quota(question_type, n)
-    chunks = BatchCycler(hits)
+    chunks = make_cycler(hits, strategy)
     pairs: List[Dict] = []
     failed = set()  # types whose batches returned nothing; don't let them starve the others
     for _ in range(max_rounds(n)):
