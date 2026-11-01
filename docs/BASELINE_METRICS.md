@@ -2,6 +2,7 @@
 
 Measured on `main` @ `37079d0` (2026-10-31), Python 3.13.2, macOS (Darwin 24.6).
 Reproduce the static/test numbers with `scripts/metrics.sh`. Compare after any upgrade or feature.
+**Latest side-by-side comparison with fresh measurements: `docs/CURRENT_METRICS.md`.**
 
 ## 1. Code size
 | Metric | Value |
