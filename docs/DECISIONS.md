@@ -89,3 +89,21 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
 - **Parent expansion is off by default and applied only to topic searches.** Why: expanded parents are ~3x
   larger and would crowd the 6,000-character prompt cap; the no-topic path already uses every chunk.
 - **Found and fixed a bug via tests:** `"1 2 3"` was classified as a Title Case heading (vacuous `all()`).
+
+## Phase 7: hybrid retrieval and reranking
+- **Implemented BM25 myself (~50 lines) instead of adding `rank_bm25`.** Why: doc sets are small, the
+  algorithm is simple and fully unit-testable, and it avoids a dependency.
+- **BM25 index is built per query from the document set's chunks, not persisted.** Why: sets are per quiz and
+  small (tens to hundreds of chunks); persisting would add invalidation bugs for no measurable gain.
+- **Reciprocal Rank Fusion (k=60) rather than score blending.** Why: BM25 and cosine scores are on different
+  scales; rank-based fusion needs no tuning.
+- **Reranker is an optional backend (`fastembed:<model>`), lazily imported, never a hard dependency.** Why:
+  cross-encoders need a model download (hundreds of MB) and an extra package; the app must stay installable
+  and testable offline. **Caveat:** the real fastembed path is unit-tested only with a fake encoder, because
+  no model was downloaded in this session. Verify it with a real model before relying on it.
+- **BGE reranker suggested as the first model to try; Qwen reranker not wired in.** Why: sources disagree on
+  Qwen3-Reranker's license (plan section 6), so the permissively licensed option is the safer default to try.
+- **Defaults unchanged (`dense`, no reranker, no distance cutoff).** Why: no evidence yet. The Phase 1
+  retrieval evaluation needs only embeddings (not an LLM), so it can run offline and decide.
+- **"Topic not found" only triggers when `RETRIEVAL_MAX_DISTANCE` is set.** Why: a sensible threshold depends
+  on the embedder and must be calibrated on data; guessing one could wrongly reject valid topics.

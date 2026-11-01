@@ -97,11 +97,16 @@ def _hits(docs, metas, embeddings=None, expand: bool = False) -> List[Hit]:
 def similarity_search(query: str, k: int = 5, doc_id: Optional[str] = None) -> List[Hit]:
     kwargs = {"where": {"doc_id": doc_id}} if doc_id else {}
     res = _collection().query(query_texts=[query], n_results=k,
-                              include=["documents", "metadatas", "embeddings"], **kwargs)
+                              include=["documents", "metadatas", "embeddings", "distances"], **kwargs)
     if not res["documents"]:
         return []
     embeddings = res["embeddings"][0] if res.get("embeddings") is not None else None
-    return _hits(res["documents"][0], res["metadatas"][0], embeddings, expand=config.PARENT_EXPANSION)
+    hits = _hits(res["documents"][0], res["metadatas"][0], embeddings, expand=config.PARENT_EXPANSION)
+    distances = (res.get("distances") or [[]])[0]
+    if len(hits) == len(distances):  # (parent expansion can drop duplicates; then distances don't line up)
+        for h, d in zip(hits, distances):
+            h["distance"] = float(d)
+    return hits
 
 
 def get_all_chunks(doc_id: str) -> List[Hit]:

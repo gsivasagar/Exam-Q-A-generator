@@ -9,7 +9,8 @@ import numpy as np
 
 from . import config
 from .clustering import farthest_first_order, kmeans
-from .vector_store import get_all_chunks, similarity_search
+from .retrieval import retrieve
+from .vector_store import get_all_chunks
 
 CHUNKS_PER_BATCH = 4  # distinct context chunks per call
 TOPIC_TOP_K = 30      # chunks fetched per topic
@@ -30,7 +31,7 @@ def gather(doc_id: str, topics: List[str]) -> List[dict]:
         return get_all_chunks(doc_id)
     seen, hits = set(), []
     for t in topics:
-        for h in similarity_search(t, k=TOPIC_TOP_K, doc_id=doc_id):
+        for h in retrieve(t, doc_id, k=TOPIC_TOP_K):
             if h["text"] not in seen:
                 seen.add(h["text"])
                 hits.append(h)

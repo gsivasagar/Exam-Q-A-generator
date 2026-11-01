@@ -63,6 +63,9 @@ def generate_qa_pairs(doc_id: str, llm: LLMProvider, n: int = 10,
 
     hits = gather(doc_id, topics)
     if not hits:
+        if topics:
+            raise ValueError(f"The topic '{topic_text}' was not found in your notes. "
+                             "Try a different topic, or leave it empty to cover everything.")
         raise ValueError(f"No content found for document set: {doc_id}")
 
     quota = type_quota(question_type, n)
