@@ -1,0 +1,6 @@
+{
+  "description": "Regression floors for the scheduled evaluation. Set a little below the 2026-11-01 results so noise does not fail the run but a real drop does. Raise them when quality improves.",
+  "retrieval": {"config": "legacy + dense (current default)", "min_mrr": 0.83, "min_recall@5": 0.93},
+  "grading_stub": {"min_agreement": 0.55, "min_precheck_agree": 3},
+  "selection_stub": {"min_context_doc_coverage": 0.85}
+}

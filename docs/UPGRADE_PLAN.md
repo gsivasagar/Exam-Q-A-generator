@@ -9,6 +9,10 @@ names the baseline metric it must improve (or not regress). Effort sizes: **S** 
 
 ---
 
+> **Status (2026-11-01): all 16 phases are done.** Phase 1 was executed last, as requested. What remains open is
+> anything that needs a language model or something only the owner can decide: see `docs/BASELINE_METRICS.md`
+> section 8.7 and `docs/DECISIONS.md`. Each phase is a local branch stacked on the previous one; nothing was pushed.
+
 ## 1. Principles
 
 1. **Measure first.** No retrieval or prompt change ships without a before/after number from the
@@ -354,7 +358,7 @@ measurements to prove it.
 ## 7. Tracking checklist
 
 - [x] 0 Housekeeping (LICENSE and `gh auth setup-git` left for the owner: both are your decision/config)
-- [ ] 1 Evaluation harness (fills all "not measured" baseline rows)
+- [x] 1 Evaluation harness (built and run; rows that need a real model are still open: see BASELINE_METRICS section 8.7)
 - [x] 2 LLM quick wins (live Ollama/Gemini runs and grading-repeatability measurement still pending: need a model)
 - [x] 3 Pipeline refactor
 - [x] 4 Coverage-aware selection (measured with a stub LLM; question-quality effect needs a live model)
@@ -368,7 +372,7 @@ measurements to prove it.
 - [x] 12 Ingestion formats and OCR (real OCR path untested here: no Tesseract installed)
 - [x] 13 Persistence and product features (accounts deferred as the plan advised; a profile name is the stand-in)
 - [x] 14 DevOps and hardening (the scheduled evaluation workflow is added with Phase 1)
-- [ ] 15 Optional advanced work
+- [x] 15 Optional advanced work (decided not to build now; evidence in BASELINE_METRICS)
 
 ## 8. Sources
 

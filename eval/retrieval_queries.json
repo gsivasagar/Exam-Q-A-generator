@@ -1,0 +1,486 @@
+{
+ "description": "Retrieval benchmark over eval/docs. A retrieved chunk is relevant if it contains `snippet` (case/whitespace-insensitive).",
+ "queries": [
+  {
+   "id": "q01",
+   "kind": "paraphrase",
+   "query": "Which part of the cell generates the energy currency by using oxygen?",
+   "doc": "cell_biology",
+   "snippet": "produces most of the cell's ATP"
+  },
+  {
+   "id": "q02",
+   "kind": "paraphrase",
+   "query": "What are the folds of the inner membrane in the energy-making organelle called?",
+   "doc": "cell_biology",
+   "snippet": "cristae"
+  },
+  {
+   "id": "q03",
+   "kind": "paraphrase",
+   "query": "How do cells package finished proteins for export?",
+   "doc": "cell_biology",
+   "snippet": "packages proteins into vesicles for secretion"
+  },
+  {
+   "id": "q04",
+   "kind": "paraphrase",
+   "query": "Which structure breaks down worn-out cell parts with enzymes?",
+   "doc": "cell_biology",
+   "snippet": "digestive enzymes"
+  },
+  {
+   "id": "q05",
+   "kind": "paraphrase",
+   "query": "How does water cross a membrane towards the saltier side?",
+   "doc": "cell_biology",
+   "snippet": "Osmosis is the diffusion of water"
+  },
+  {
+   "id": "q06",
+   "kind": "paraphrase",
+   "query": "How do cells move substances uphill against their gradient?",
+   "doc": "cell_biology",
+   "snippet": "Active transport moves molecules against"
+  },
+  {
+   "id": "q07",
+   "kind": "paraphrase",
+   "query": "At which stage of division do chromosomes line up in the middle?",
+   "doc": "cell_biology",
+   "snippet": "line up along the cell's equator"
+  },
+  {
+   "id": "q08",
+   "kind": "paraphrase",
+   "query": "What process swaps genetic material between paired chromosomes to create variety?",
+   "doc": "cell_biology",
+   "snippet": "Crossing over during prophase I"
+  },
+  {
+   "id": "q09",
+   "kind": "paraphrase",
+   "query": "What do muscle cells produce when oxygen runs out?",
+   "doc": "cell_biology",
+   "snippet": "lactic acid in muscle cells"
+  },
+  {
+   "id": "q10",
+   "kind": "paraphrase",
+   "query": "Why do leaves look green?",
+   "doc": "photosynthesis",
+   "snippet": "reflects green light"
+  },
+  {
+   "id": "q11",
+   "kind": "paraphrase",
+   "query": "In which part of the chloroplast is carbon dioxide fixed?",
+   "doc": "photosynthesis",
+   "snippet": "takes place in the stroma"
+  },
+  {
+   "id": "q12",
+   "kind": "paraphrase",
+   "query": "Which enzyme attaches carbon dioxide to a five-carbon sugar?",
+   "doc": "photosynthesis",
+   "snippet": "rubisco fixes carbon dioxide"
+  },
+  {
+   "id": "q13",
+   "kind": "paraphrase",
+   "query": "How does water get pulled up from the roots against gravity?",
+   "doc": "photosynthesis",
+   "snippet": "pulls water up the stem by cohesion and tension"
+  },
+  {
+   "id": "q14",
+   "kind": "paraphrase",
+   "query": "What controls the opening of pores on leaves?",
+   "doc": "photosynthesis",
+   "snippet": "opened and closed by guard cells"
+  },
+  {
+   "id": "q15",
+   "kind": "paraphrase",
+   "query": "How do desert plants save water during photosynthesis?",
+   "doc": "photosynthesis",
+   "snippet": "open their stomata only at night"
+  },
+  {
+   "id": "q16",
+   "kind": "paraphrase",
+   "query": "How is a reliable connection established between two hosts?",
+   "doc": "networks",
+   "snippet": "three-way handshake"
+  },
+  {
+   "id": "q17",
+   "kind": "paraphrase",
+   "query": "Which transport protocol suits online games where speed beats completeness?",
+   "doc": "networks",
+   "snippet": "connectionless protocol"
+  },
+  {
+   "id": "q18",
+   "kind": "paraphrase",
+   "query": "How do devices automatically receive their addressing settings when joining a network?",
+   "doc": "networks",
+   "snippet": "DHCP automatically assigns"
+  },
+  {
+   "id": "q19",
+   "kind": "paraphrase",
+   "query": "What turns website names into numeric addresses?",
+   "doc": "networks",
+   "snippet": "DNS translates human-readable domain names"
+  },
+  {
+   "id": "q20",
+   "kind": "paraphrase",
+   "query": "What does the response code for a page that has relocated mean?",
+   "doc": "networks",
+   "snippet": "301 response"
+  },
+  {
+   "id": "q21",
+   "kind": "paraphrase",
+   "query": "At which layer does a router forward traffic compared with a switch?",
+   "doc": "networks",
+   "snippet": "Routers forward packets at the network layer"
+  },
+  {
+   "id": "q22",
+   "kind": "paraphrase",
+   "query": "Which approach halves the search range at every step on sorted data?",
+   "doc": "algorithms",
+   "snippet": "Binary search finds an item in a sorted array"
+  },
+  {
+   "id": "q23",
+   "kind": "paraphrase",
+   "query": "Which traversal uses a queue and finds shortest paths without weights?",
+   "doc": "algorithms",
+   "snippet": "Breadth-first search explores"
+  },
+  {
+   "id": "q24",
+   "kind": "paraphrase",
+   "query": "Which algorithm finds shortest routes with non-negative weights using a priority queue?",
+   "doc": "algorithms",
+   "snippet": "Dijkstra's algorithm"
+  },
+  {
+   "id": "q25",
+   "kind": "paraphrase",
+   "query": "Which technique stores answers to overlapping subproblems?",
+   "doc": "algorithms",
+   "snippet": "Dynamic programming solves a problem by storing"
+  },
+  {
+   "id": "q26",
+   "kind": "paraphrase",
+   "query": "What makes each row in a table unique?",
+   "doc": "databases",
+   "snippet": "A primary key uniquely identifies"
+  },
+  {
+   "id": "q27",
+   "kind": "paraphrase",
+   "query": "Which join keeps all rows from the first table even without matches?",
+   "doc": "databases",
+   "snippet": "LEFT JOIN keeps every row"
+  },
+  {
+   "id": "q28",
+   "kind": "paraphrase",
+   "query": "What guarantees that a group of operations either all happen or none do?",
+   "doc": "databases",
+   "snippet": "either all succeed or all fail"
+  },
+  {
+   "id": "q29",
+   "kind": "paraphrase",
+   "query": "Why do indexes make writes slower?",
+   "doc": "databases",
+   "snippet": "slow down inserts and updates"
+  },
+  {
+   "id": "q30",
+   "kind": "paraphrase",
+   "query": "Why did the commoners vow to stay together until France had a constitution?",
+   "doc": "french_revolution",
+   "snippet": "Tennis Court Oath"
+  },
+  {
+   "id": "q31",
+   "kind": "paraphrase",
+   "query": "Who led the committee behind the mass executions of 1793?",
+   "doc": "french_revolution",
+   "snippet": "Maximilien Robespierre"
+  },
+  {
+   "id": "q32",
+   "kind": "paraphrase",
+   "query": "Which legal code standardised civil law under the emperor?",
+   "doc": "french_revolution",
+   "snippet": "Napoleonic Code of 1804"
+  },
+  {
+   "id": "q33",
+   "kind": "paraphrase",
+   "query": "What does the energy conservation law say about heat and work?",
+   "doc": "thermodynamics",
+   "snippet": "conservation of energy"
+  },
+  {
+   "id": "q34",
+   "kind": "paraphrase",
+   "query": "How efficient can a perfect engine be between two heat reservoirs?",
+   "doc": "thermodynamics",
+   "snippet": "Carnot efficiency"
+  },
+  {
+   "id": "q35",
+   "kind": "paraphrase",
+   "query": "How does the Sun's warmth reach Earth through empty space?",
+   "doc": "thermodynamics",
+   "snippet": "needs no medium"
+  },
+  {
+   "id": "q36",
+   "kind": "paraphrase",
+   "query": "What happens when the government caps a price below the market level?",
+   "doc": "economics",
+   "snippet": "creates a shortage"
+  },
+  {
+   "id": "q37",
+   "kind": "paraphrase",
+   "query": "Why do countries gain from trade even if one is better at everything?",
+   "doc": "economics",
+   "snippet": "Comparative advantage explains"
+  },
+  {
+   "id": "q38",
+   "kind": "paraphrase",
+   "query": "How can a central bank cool down inflation?",
+   "doc": "economics",
+   "snippet": "raise interest rates to cool inflation"
+  },
+  {
+   "id": "q39",
+   "kind": "exact",
+   "query": "SYN-ACK",
+   "doc": "networks",
+   "snippet": "SYN-ACK"
+  },
+  {
+   "id": "q40",
+   "kind": "exact",
+   "query": "AVL tree",
+   "doc": "algorithms",
+   "snippet": "AVL tree"
+  },
+  {
+   "id": "q41",
+   "kind": "exact",
+   "query": "PV = nRT",
+   "doc": "thermodynamics",
+   "snippet": "PV = nRT"
+  },
+  {
+   "id": "q42",
+   "kind": "exact",
+   "query": "255.255.255.0",
+   "doc": "networks",
+   "snippet": "255.255.255.0"
+  },
+  {
+   "id": "q43",
+   "kind": "exact",
+   "query": "rubisco",
+   "doc": "photosynthesis",
+   "snippet": "rubisco"
+  },
+  {
+   "id": "q44",
+   "kind": "exact",
+   "query": "18 Brumaire",
+   "doc": "french_revolution",
+   "snippet": "18 Brumaire"
+  },
+  {
+   "id": "q45",
+   "kind": "exact",
+   "query": "CAP theorem",
+   "doc": "databases",
+   "snippet": "CAP theorem"
+  },
+  {
+   "id": "q46",
+   "kind": "exact",
+   "query": "4200 joules",
+   "doc": "thermodynamics",
+   "snippet": "4200 joules"
+  },
+  {
+   "id": "q47",
+   "kind": "exact",
+   "query": "G3P",
+   "doc": "photosynthesis",
+   "snippet": "G3P"
+  },
+  {
+   "id": "q48",
+   "kind": "exact",
+   "query": "status code 404",
+   "doc": "networks",
+   "snippet": "status code 404"
+  },
+  {
+   "id": "q49",
+   "kind": "hard",
+   "query": "Which cellular compartment makes the fuel that powers everything else?",
+   "doc": "cell_biology",
+   "snippet": "produces most of the cell's ATP"
+  },
+  {
+   "id": "q50",
+   "kind": "hard",
+   "query": "Where do plants turn sunlight into sugar?",
+   "doc": "photosynthesis",
+   "snippet": "Photosynthesis converts light energy"
+  },
+  {
+   "id": "q51",
+   "kind": "hard",
+   "query": "What exchange of chromosome segments makes offspring differ from their parents?",
+   "doc": "cell_biology",
+   "snippet": "Crossing over"
+  },
+  {
+   "id": "q52",
+   "kind": "hard",
+   "query": "Which dark-reaction enzyme is most important for capturing carbon from the air?",
+   "doc": "photosynthesis",
+   "snippet": "rubisco fixes carbon dioxide"
+  },
+  {
+   "id": "q53",
+   "kind": "hard",
+   "query": "Why can a machine never turn all of its heat input into useful work?",
+   "doc": "thermodynamics",
+   "snippet": "total entropy of an isolated system never decreases"
+  },
+  {
+   "id": "q54",
+   "kind": "hard",
+   "query": "What is the coldest temperature that is possible?",
+   "doc": "thermodynamics",
+   "snippet": "Absolute zero is 0 kelvin"
+  },
+  {
+   "id": "q55",
+   "kind": "hard",
+   "query": "What do you give up when you pick one option over another?",
+   "doc": "economics",
+   "snippet": "Opportunity cost is the value of the next best alternative"
+  },
+  {
+   "id": "q56",
+   "kind": "hard",
+   "query": "What measure tracks how quickly household prices are climbing?",
+   "doc": "economics",
+   "snippet": "consumer price index"
+  },
+  {
+   "id": "q57",
+   "kind": "hard",
+   "query": "Why does a second helping please you less than the first?",
+   "doc": "economics",
+   "snippet": "diminishing marginal utility"
+  },
+  {
+   "id": "q58",
+   "kind": "hard",
+   "query": "Which structure looks up values by key in constant time on average?",
+   "doc": "algorithms",
+   "snippet": "A hash table maps keys to buckets"
+  },
+  {
+   "id": "q59",
+   "kind": "hard",
+   "query": "Which tree-in-an-array structure gives quick access to the smallest item?",
+   "doc": "algorithms",
+   "snippet": "binary heap"
+  },
+  {
+   "id": "q60",
+   "kind": "hard",
+   "query": "How does a database return to a consistent state after a power failure?",
+   "doc": "databases",
+   "snippet": "Write-ahead logging"
+  },
+  {
+   "id": "q61",
+   "kind": "hard",
+   "query": "What happens when two transactions wait on each other's locks forever?",
+   "doc": "databases",
+   "snippet": "A deadlock occurs"
+  },
+  {
+   "id": "q62",
+   "kind": "hard",
+   "query": "How do computers find the hardware address of a neighbour on the same network?",
+   "doc": "networks",
+   "snippet": "ARP maps"
+  },
+  {
+   "id": "q63",
+   "kind": "hard",
+   "query": "How does a sender avoid flooding a slow receiver?",
+   "doc": "networks",
+   "snippet": "sliding window"
+  },
+  {
+   "id": "q64",
+   "kind": "hard",
+   "query": "Which July event is remembered as the symbol of the uprising?",
+   "doc": "french_revolution",
+   "snippet": "Bastille prison was stormed"
+  },
+  {
+   "id": "q65",
+   "kind": "hard",
+   "query": "How did the king meet his end in early 1793?",
+   "doc": "french_revolution",
+   "snippet": "executed by guillotine in January 1793"
+  },
+  {
+   "id": "q66",
+   "kind": "hard",
+   "query": "How do cells build proteins from genetic instructions?",
+   "doc": "cell_biology",
+   "snippet": "Ribosomes assemble proteins"
+  },
+  {
+   "id": "q67",
+   "kind": "hard",
+   "query": "How do sugar solutions travel from the leaves to roots and fruits?",
+   "doc": "photosynthesis",
+   "snippet": "phloem carries dissolved sugars"
+  },
+  {
+   "id": "q68",
+   "kind": "hard",
+   "query": "Which equation links pressure, volume and temperature of a gas?",
+   "doc": "thermodynamics",
+   "snippet": "The ideal gas law is PV"
+  }
+ ],
+ "absent_topics": [
+  "quantum chromodynamics gluons",
+  "medieval castle architecture and siege towers",
+  "Python decorators and generators"
+ ]
+}

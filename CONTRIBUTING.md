@@ -24,7 +24,12 @@ Tests use a fake LLM and a real temporary Chroma store, so no Ollama or API key 
 - Record non-obvious choices in `docs/DECISIONS.md`.
 - Never put secrets in the repo. API keys come from the environment or the sidebar.
 
-## Measuring
+## Measuring quality (not just code)
+`eval/README.md` describes the retrieval, selection, generation and grading benchmarks. Before changing retrieval,
+chunking, prompts or grading, run the relevant script before and after and compare with `scripts/compare_eval.py`;
+trust a change only if the paired interval excludes zero. `scripts/check_eval.py` is the regression gate used in CI.
+
+## Measuring code
 `scripts/metrics.sh` reproduces the code/test metrics. Other scripts in `scripts/` measure chunking, selection and
 simulated latency; `docs/BASELINE_METRICS.md` explains how each number was produced.
 

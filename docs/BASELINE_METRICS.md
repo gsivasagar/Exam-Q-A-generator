@@ -115,9 +115,10 @@ tokens (and cost) may be several times higher than the estimate. Re-measure with
 Latency was not measured because no LLM was available. Expected shape: total time is roughly the
 number of calls (12 for a 10-question short-answer quiz) times the time per call.
 
-## 6. Not measured yet (needs a running LLM)
-Ollama is installed but its server was not running, so these are open. Measure them before changing
-retrieval or prompts, and record the model and date:
+## 6. Still open: needs a language model
+Ollama was not used in this build, so the rows below that need a real model are open. The harness for each is
+ready (`eval/README.md`); run it and record the model and date. Rows marked *stub* were measured with the
+no-model stand-ins, which test the pipeline, not a model:
 
 | Metric | How to measure |
 |---|---|
@@ -150,3 +151,112 @@ retrieval or prompts, and record the model and date:
 | 12 Ingestion formats and OCR | 2026-11-01 | New inputs: DOCX and PPTX (standard library only, zip-bomb guarded), Markdown/text (BOM-aware decoding), web pages and PDF links (http/https only; localhost, private, link-local and metadata addresses refused; redirects refused; size and time limits), upload size (`MAX_UPLOAD_MB` 25) and PDF page (`MAX_PDF_PAGES` 300) limits, content-based format detection. Optional OCR fallback for text-less PDFs (`pypdfium2` + `pytesseract` + Tesseract; `OCR_MODE=off|auto`). Documents without real pages use page 0, shown without a page number. UI accepts all formats plus a URL box. Tests 302 to 350. **Extraction bake-off** (5 distinct sample PDFs, `scripts/extraction_bakeoff.py`): pypdf 2.55 s / 166,556 chars / 11 glued words; pypdfium2 0.21 s / 166,948 chars / 11 glued; pdfplumber 7.55 s / 160,071 chars / 326 glued. PyMuPDF could not be built in this environment (SSL error), so it was not compared. `fonttools` added to requirements (pypdf warns without it; sample output identical either way). **Not tested:** the real OCR path (no Tesseract here; only an injected fake) and fetching real websites |
 | 13 Persistence and product features | 2026-11-01 | SQLite schema now versioned with numbered migrations (`PRAGMA user_version`, v2; verified on a pre-versioning database with data kept). New: saved quizzes + retake + delete, history with attempts/average score, spaced repetition (simplified SM-2, 1/3/N days, ease 1.3-2.8), exports (printable exam PDF, exam + answer key, Anki TSV, CSV), TTL cleanup of old documents (`DOC_TTL_DAYS`=7, run once per browser session), per-profile "delete my data", optional profile name (history survives refresh). Tests 350 to 378. Bugs found and fixed by tests: list-typed topic broke saving practice quizzes; sidebar history was drawn before the new quiz existed. **Not done:** real accounts/passwords (a profile name is not security), cross-device sync |
 | 14 DevOps and hardening | 2026-11-01 | **Image (built and run with Docker here):** old Dockerfile 1.92 GB; new 1.60 GB (-17%) *including* the embedding model baked in. Runs as uid 1000 (non-root); no compiler or curl; health check via Python; pinned `requirements.lock` (371 lines, Python 3.11 universal). Verified: `/_stcore/health` ok, **healthy 7 s after start**, ingestion + quiz generation work with the network disabled (first ingestion 1.4 s; before baking the model in it took 120 s and needed internet). Compose: named data volume (no bind-mount permission problems), optional `ollama` service (`--profile ollama`). Structured logging (`LOG_FORMAT=json`). **Type checking:** mypy found 23 errors in 7 files; all fixed, now 0 across 35 files and enforced in CI. CI: separate lint, types, tests (3.11 + 3.13, coverage floor 92%) and a docker build/health job on pushes to main. **Coverage 94.6%** (was 89%), 382 tests. Added `docs/ARCHITECTURE.md` and `CONTRIBUTING.md`. **Not done:** LICENSE (owner's choice), running the CI workflows on GitHub (nothing was pushed) |
+| 15 Optional advanced work | 2026-11-01 | **Decided not to build any of it now**, on evidence from Phase 1. Contextual retrieval: retrieval is already at recall@10 100% / recall@5 97% on the benchmark, so there is little to gain for one extra LLM call per chunk. RAPTOR, multimodal: no evidence of need and nothing to evaluate them on without a model and diagram-heavy material. Bounded verify-and-regenerate loop: **already exists** (rejected questions leave a quota shortfall that the bounded generation rounds refill; proven by a test). Revisit after a real-model run |
+| 1 Evaluation harness | 2026-11-01 | See section 8. Tests 424, `generate_qa_pairs` complexity brought back from 21 to 5 (outputs identical to before on 9 seeded scenarios) |
+
+## 8. Evaluation results (Phase 1, 2026-11-01)
+
+Corpus: 8 authored study notes (~2,800 words), 68 retrieval queries (38 paraphrase, 10 exact-term, 20 hard/indirect),
+33 hand-labelled grading answers. Chunk sizes scaled down so the short notes behave like long documents.
+Reproduce with `eval/README.md`; raw results are in `eval/results/`.
+
+### 8.1 Retrieval (MiniLM default embedder, no model needed)
+| Configuration | R@1 | R@5 | MRR | 95% CI | Paired change in MRR vs current default |
+|---|---|---|---|---|---|
+| legacy chunks + dense **(current default)** | 0.81 | 0.97 | 0.888 | [0.83, 0.94] | baseline |
+| legacy + hybrid (BM25 + dense) | 0.81 | 1.00 | 0.893 | [0.84, 0.94] | +0.005 [-0.054, +0.062] no clear difference |
+| structured chunks + dense | 0.75 | 0.96 | 0.849 | [0.79, 0.91] | -0.039 [-0.089, +0.008] no clear difference |
+| structured + hybrid | 0.82 | 0.97 | 0.888 | [0.83, 0.95] | -0.001 [-0.078, +0.074] no clear difference |
+| structured + dense + parent* | 0.87 | 0.99 | 0.919 | [0.87, 0.97] | +0.031 [-0.034, +0.096] no clear difference |
+| structured + hybrid + parent* | 0.85 | 1.00 | 0.910 | [0.86, 0.96] | +0.021 [-0.057, +0.096] no clear difference |
+
+\* parent rows return ~3 chunks of text per hit, so containing the gold snippet is easier by construction.
+**Conclusion: no chunking or retrieval-mode change is distinguishable from the current default on this benchmark,
+so all defaults stay.** Hybrid helps exact-term queries slightly (MRR 0.933 to 0.950) and hurts hard ones slightly
+(0.779 to 0.752); neither is significant.
+
+### 8.2 Reranker (real cross-encoder `Xenova/ms-marco-MiniLM-L-6-v2` via fastembed)
+| Configuration | MRR without | with | Paired change [95% CI] | better / worse queries | ms per query |
+|---|---|---|---|---|---|
+| legacy + dense (default) | 0.888 | 0.942 | +0.054 [-0.007, +0.114] | 12 / 4 | 239 to 992 |
+| legacy + hybrid | 0.893 | 0.942 | +0.049 [+0.007, +0.101] **better** | 10 / 2 | 298 to 749 |
+| structured + dense | 0.849 | 0.936 | +0.087 [+0.028, +0.147] **better** | 15 / 4 | 297 to 831 |
+| structured + hybrid | 0.888 | 0.936 | +0.049 [+0.004, +0.099] **better** | 10 / 2 | 309 to 894 |
+
+The reranker is the only change with statistical support (4 of 6 configurations clearly better, all positive;
+hard-query MRR 0.78 to 0.86). Cost: roughly +0.5 to 0.75 s per topic query and an optional dependency
+(`pip install fastembed`, ~80 MB model). It stays opt-in (`RERANKER=fastembed:...`). This was also the first run of
+the reranker code against a real model (previously only a fake).
+
+### 8.3 Embedder
+| Embedder | MRR (legacy + dense) | ms per query |
+|---|---|---|
+| default MiniLM (Chroma ONNX) | 0.888 | 239 |
+| `fastembed:BAAI/bge-small-en-v1.5` | 0.871 | 13 |
+
+No clear quality difference; bge-small is ~18x faster per query. Ollama embedders (`bge-m3`, `nomic-embed-text`,
+`qwen3-embedding`) were not run: **open**.
+
+### 8.4 Chunk selection (stub; 120 runs per arm, 8 documents, 57 chunks)
+| Strategy | Documents touched per quiz | Mean similarity of chunks shown (lower = more varied) |
+|---|---|---|
+| random (original) | 0.725 | 0.126 |
+| clusters only (Phase 4 as first shipped) | 0.695 | 0.097 |
+| **source-aware clusters (now the default)** | **0.945** | 0.103 |
+
+Source-aware vs random: +0.220 documents [+0.198, +0.243]; vs clusters-only: +0.250 [+0.228, +0.272]. See section 9.
+
+### 8.5 Grading (stub lexical grader = floor; 33 labelled answers)
+| Mode | Agreement with labels | Mean abs error | Mean score correct / partial / wrong | Repeatability (std) |
+|---|---|---|---|---|
+| rubric (default) | 64% (21/33) | 0.207 | 0.80 / 0.13 / 0.08 | 0.000 |
+| holistic | 61% (20/33) | 0.208 | 0.76 / 0.18 / 0.09 | 0.000 |
+
+LLM-free pre-checks settle 3 of 33 answers (blank, "I don't know", exact copy), all 3 correctly. The lexical floor fails
+mostly on *partial* answers; a real model must beat it there. Real-model agreement and repeatability: **open**.
+
+### 8.6 Generation (stub; pipeline only)
+valid_rate 1.00, parse_fail_rate 0.00, item_validity 1.00, grounded_rate 1.00 (all trivially true for an extractive
+stub), 2.0 LLM calls per 8-question quiz, section_coverage 0.66. `duplicate_rate` is meaningless for the stub (it repeats
+itself). The same script run with `--provider ollama|gemini` produces the real numbers: **open**.
+
+### 8.7 Still open (needs a real model or the owner)
+Valid-question rate, parse-failure and retry rate, MCQ validity, citation correctness (manual review file), duplicate
+rate, grading agreement/accuracy/repeatability, verifier effect, real latency and token cost; Ollama embedders; the
+`bge-reranker` family (large downloads not run); real OCR with Tesseract.
+
+## 9. Corrections to earlier claims in this log
+- **Phase 4** reported "+36-39% distinct documents" for clustering alone. On the balanced 8-document benchmark with
+  120 runs per arm, clustering alone *reduced* documents touched (-0.030, CI [-0.054, -0.007]) while making chunks
+  less similar (-0.029). The earlier sample had one 156-chunk document and four small ones, where random sampling is
+  dominated by the big one. The source-aware version added in Phase 1 fixes the weakness (+0.25 documents).
+- **Phase 5** shipped Ollama/fastembed embedders that crashed on every search: Chroma calls `embed_query`, which my
+  embedders lacked (tests only covered adding chunks). Found by running a real model; fixed with regression tests.
+- **Phase 6/7** combination "hybrid + parent expansion" silently dropped the dense half of retrieval (MRR 0.80). Found
+  by the benchmark; fixed (expansion now happens after ranking) with a regression test.
+- **Phase 3** gate (`generate_qa_pairs` complexity < 10) had been undone by later phases (21); restored to 5.
+- Two measurement bugs in my own evaluation tools were found and fixed during Phase 1 (a stub grader that rated
+  everything correct because it parsed the prompt's instructions as the student answer, and a document matcher that
+  ignored Markdown heading markers). Both are covered by tests.
+
+## 10. Final snapshot versus the original baseline
+| Metric | Baseline (section 1-5) | Now |
+|---|---|---|
+| App code, lines / source lines | 821 / 621 | 3,198 / 2,337 |
+| Test code, lines / source lines | 604 / 452 | 3,098 / 2,384 |
+| Modules in `app/` (incl. `__init__`) | 11 | 35 |
+| Tests | 94 | **424** |
+| Statement coverage | 89% | **94.7%** (branch partials 32 of 640) |
+| `llm.py` coverage | 31% | 99% |
+| Average cyclomatic complexity | 4.28 | 4.19 (204 blocks, was 46) |
+| Worst functions | `generate_qa_pairs` 25 (D) | `heading_level` 23 (D), `retrieve` 21 (D); `generate_qa_pairs` 5 (A) |
+| Lowest maintainability index | `qa_generator` 35.2 | `ui.py` 32.0, `loaders.py` 33.7 |
+| Lint findings (E,F) | 6 | 0 |
+| Type errors (mypy) | not checked | 0 across 35 files (enforced in CI) |
+| Direct dependencies | 8 | 10 (added `numpy`, `fonttools`) |
+| Docker image | 1.92 GB, root, builds from loose versions | 1.60 GB, non-root, pinned, runs offline |
+| Question types | short, multiple choice | + true/false, fill-in-the-blank |
+| Inputs | PDF with a text layer | + DOCX, PPTX, Markdown, text, web pages, optional OCR |
+| LLM calls (10-question short quiz) | 12 sequential | 12, parallel where the provider allows (Gemini x4) |
+| Retrieval MRR / recall@5 (benchmark) | not measured | 0.888 / 0.97 (default); 0.942 / 1.00 with reranker |
+| Documents touched by a multi-file quiz (benchmark) | not measured | 0.725 random, now 0.945 |

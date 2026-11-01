@@ -1,0 +1,412 @@
+{
+ "description": "Hand-labelled grading calibration set. label: correct (target score 1), partial (0.5), wrong (0). Labels were written by the author of the benchmark; replace/extend with your own marking before trusting absolute numbers.",
+ "targets": {
+  "correct": 1.0,
+  "partial": 0.5,
+  "wrong": 0.0
+ },
+ "items": [
+  {
+   "id": "g01",
+   "doc": "cell_biology",
+   "question": "What does the mitochondrion do?",
+   "reference": "It produces most of the cell's ATP through aerobic respiration.",
+   "key_points": [
+    "produces ATP",
+    "aerobic respiration"
+   ],
+   "student": "The mitochondrion makes most of a cell's ATP by aerobic respiration.",
+   "label": "correct"
+  },
+  {
+   "id": "g02",
+   "doc": "cell_biology",
+   "question": "What does the mitochondrion do?",
+   "reference": "It produces most of the cell's ATP through aerobic respiration.",
+   "key_points": [
+    "produces ATP",
+    "aerobic respiration"
+   ],
+   "student": "It makes energy for the cell.",
+   "label": "partial"
+  },
+  {
+   "id": "g03",
+   "doc": "cell_biology",
+   "question": "What does the mitochondrion do?",
+   "reference": "It produces most of the cell's ATP through aerobic respiration.",
+   "key_points": [
+    "produces ATP",
+    "aerobic respiration"
+   ],
+   "student": "It stores the chromosomes inside the nucleus.",
+   "label": "wrong"
+  },
+  {
+   "id": "g04",
+   "doc": "photosynthesis",
+   "question": "Why do leaves look green?",
+   "reference": "Chlorophyll absorbs red and blue light and reflects green light.",
+   "key_points": [
+    "chlorophyll absorbs red and blue light",
+    "green light is reflected"
+   ],
+   "student": "Chlorophyll takes in red and blue light and reflects the green.",
+   "label": "correct"
+  },
+  {
+   "id": "g05",
+   "doc": "photosynthesis",
+   "question": "Why do leaves look green?",
+   "reference": "Chlorophyll absorbs red and blue light and reflects green light.",
+   "key_points": [
+    "chlorophyll absorbs red and blue light",
+    "green light is reflected"
+   ],
+   "student": "Because of chlorophyll.",
+   "label": "partial"
+  },
+  {
+   "id": "g06",
+   "doc": "photosynthesis",
+   "question": "Why do leaves look green?",
+   "reference": "Chlorophyll absorbs red and blue light and reflects green light.",
+   "key_points": [
+    "chlorophyll absorbs red and blue light",
+    "green light is reflected"
+   ],
+   "student": "Leaves absorb green light and reflect red.",
+   "label": "wrong"
+  },
+  {
+   "id": "g07",
+   "doc": "networks",
+   "question": "How does TCP start a connection?",
+   "reference": "With a three-way handshake of SYN, SYN-ACK and ACK segments.",
+   "key_points": [
+    "three-way handshake",
+    "SYN, SYN-ACK and ACK"
+   ],
+   "student": "TCP opens with a three-way handshake: SYN, then SYN-ACK, then ACK.",
+   "label": "correct"
+  },
+  {
+   "id": "g08",
+   "doc": "networks",
+   "question": "How does TCP start a connection?",
+   "reference": "With a three-way handshake of SYN, SYN-ACK and ACK segments.",
+   "key_points": [
+    "three-way handshake",
+    "SYN, SYN-ACK and ACK"
+   ],
+   "student": "It uses a handshake.",
+   "label": "partial"
+  },
+  {
+   "id": "g09",
+   "doc": "networks",
+   "question": "How does TCP start a connection?",
+   "reference": "With a three-way handshake of SYN, SYN-ACK and ACK segments.",
+   "key_points": [
+    "three-way handshake",
+    "SYN, SYN-ACK and ACK"
+   ],
+   "student": "It just starts sending data without any setup, like UDP.",
+   "label": "wrong"
+  },
+  {
+   "id": "g10",
+   "doc": "algorithms",
+   "question": "Why is binary search fast?",
+   "reference": "It halves the search range each step on a sorted array, giving O(log n) time.",
+   "key_points": [
+    "halves the range each step",
+    "needs a sorted array",
+    "O(log n)"
+   ],
+   "student": "It cuts the range in half every step on sorted data, so it runs in O(log n).",
+   "label": "correct"
+  },
+  {
+   "id": "g11",
+   "doc": "algorithms",
+   "question": "Why is binary search fast?",
+   "reference": "It halves the search range each step on a sorted array, giving O(log n) time.",
+   "key_points": [
+    "halves the range each step",
+    "needs a sorted array",
+    "O(log n)"
+   ],
+   "student": "It is fast because it halves the range.",
+   "label": "partial"
+  },
+  {
+   "id": "g12",
+   "doc": "algorithms",
+   "question": "Why is binary search fast?",
+   "reference": "It halves the search range each step on a sorted array, giving O(log n) time.",
+   "key_points": [
+    "halves the range each step",
+    "needs a sorted array",
+    "O(log n)"
+   ],
+   "student": "It checks each element one by one so it is O(n).",
+   "label": "wrong"
+  },
+  {
+   "id": "g13",
+   "doc": "databases",
+   "question": "What is a primary key?",
+   "reference": "A column that uniquely identifies each row and cannot be null.",
+   "key_points": [
+    "uniquely identifies each row",
+    "cannot be null"
+   ],
+   "student": "It uniquely identifies every row and can never be null.",
+   "label": "correct"
+  },
+  {
+   "id": "g14",
+   "doc": "databases",
+   "question": "What is a primary key?",
+   "reference": "A column that uniquely identifies each row and cannot be null.",
+   "key_points": [
+    "uniquely identifies each row",
+    "cannot be null"
+   ],
+   "student": "It identifies rows.",
+   "label": "partial"
+  },
+  {
+   "id": "g15",
+   "doc": "databases",
+   "question": "What is a primary key?",
+   "reference": "A column that uniquely identifies each row and cannot be null.",
+   "key_points": [
+    "uniquely identifies each row",
+    "cannot be null"
+   ],
+   "student": "It links a row to a row in another table.",
+   "label": "wrong"
+  },
+  {
+   "id": "g16",
+   "doc": "french_revolution",
+   "question": "What was the Tennis Court Oath?",
+   "reference": "The Third Estate swore not to disband until France had a constitution.",
+   "key_points": [
+    "Third Estate swore",
+    "until France had a constitution"
+   ],
+   "student": "Members of the Third Estate vowed not to separate until they had given France a constitution.",
+   "label": "correct"
+  },
+  {
+   "id": "g17",
+   "doc": "french_revolution",
+   "question": "What was the Tennis Court Oath?",
+   "reference": "The Third Estate swore not to disband until France had a constitution.",
+   "key_points": [
+    "Third Estate swore",
+    "until France had a constitution"
+   ],
+   "student": "A promise by the Third Estate.",
+   "label": "partial"
+  },
+  {
+   "id": "g18",
+   "doc": "french_revolution",
+   "question": "What was the Tennis Court Oath?",
+   "reference": "The Third Estate swore not to disband until France had a constitution.",
+   "key_points": [
+    "Third Estate swore",
+    "until France had a constitution"
+   ],
+   "student": "The oath Napoleon took when he became emperor.",
+   "label": "wrong"
+  },
+  {
+   "id": "g19",
+   "doc": "thermodynamics",
+   "question": "State the second law of thermodynamics.",
+   "reference": "The total entropy of an isolated system never decreases.",
+   "key_points": [
+    "entropy",
+    "isolated system",
+    "never decreases"
+   ],
+   "student": "In an isolated system, total entropy never decreases.",
+   "label": "correct"
+  },
+  {
+   "id": "g20",
+   "doc": "thermodynamics",
+   "question": "State the second law of thermodynamics.",
+   "reference": "The total entropy of an isolated system never decreases.",
+   "key_points": [
+    "entropy",
+    "isolated system",
+    "never decreases"
+   ],
+   "student": "Entropy always increases.",
+   "label": "partial"
+  },
+  {
+   "id": "g21",
+   "doc": "thermodynamics",
+   "question": "State the second law of thermodynamics.",
+   "reference": "The total entropy of an isolated system never decreases.",
+   "key_points": [
+    "entropy",
+    "isolated system",
+    "never decreases"
+   ],
+   "student": "Energy cannot be created or destroyed.",
+   "label": "wrong"
+  },
+  {
+   "id": "g22",
+   "doc": "economics",
+   "question": "What is opportunity cost?",
+   "reference": "The value of the next best alternative given up when making a choice.",
+   "key_points": [
+    "next best alternative",
+    "given up"
+   ],
+   "student": "It is the value of the next best option you give up when you choose.",
+   "label": "correct"
+  },
+  {
+   "id": "g23",
+   "doc": "economics",
+   "question": "What is opportunity cost?",
+   "reference": "The value of the next best alternative given up when making a choice.",
+   "key_points": [
+    "next best alternative",
+    "given up"
+   ],
+   "student": "The cost of something.",
+   "label": "partial"
+  },
+  {
+   "id": "g24",
+   "doc": "economics",
+   "question": "What is opportunity cost?",
+   "reference": "The value of the next best alternative given up when making a choice.",
+   "key_points": [
+    "next best alternative",
+    "given up"
+   ],
+   "student": "The money price paid for a good.",
+   "label": "wrong"
+  },
+  {
+   "id": "g25",
+   "doc": "cell_biology",
+   "question": "What happens in metaphase?",
+   "reference": "Chromosomes line up along the cell's equator before spindle fibres pull sister chromatids apart.",
+   "key_points": [
+    "chromosomes line up at the equator",
+    "spindle fibres separate sister chromatids"
+   ],
+   "student": "Chromosomes line up at the equator, and then spindle fibres pull the sister chromatids apart.",
+   "label": "correct"
+  },
+  {
+   "id": "g26",
+   "doc": "cell_biology",
+   "question": "What happens in metaphase?",
+   "reference": "Chromosomes line up along the cell's equator before spindle fibres pull sister chromatids apart.",
+   "key_points": [
+    "chromosomes line up at the equator",
+    "spindle fibres separate sister chromatids"
+   ],
+   "student": "Chromosomes line up in the middle.",
+   "label": "partial"
+  },
+  {
+   "id": "g27",
+   "doc": "cell_biology",
+   "question": "What happens in metaphase?",
+   "reference": "Chromosomes line up along the cell's equator before spindle fibres pull sister chromatids apart.",
+   "key_points": [
+    "chromosomes line up at the equator",
+    "spindle fibres separate sister chromatids"
+   ],
+   "student": "The cell splits its cytoplasm into two.",
+   "label": "wrong"
+  },
+  {
+   "id": "g28",
+   "doc": "networks",
+   "question": "What does DNS do?",
+   "reference": "It translates domain names into IP addresses.",
+   "key_points": [
+    "translates domain names",
+    "into IP addresses"
+   ],
+   "student": "DNS translates human-readable domain names to IP addresses.",
+   "label": "correct"
+  },
+  {
+   "id": "g29",
+   "doc": "networks",
+   "question": "What does DNS do?",
+   "reference": "It translates domain names into IP addresses.",
+   "key_points": [
+    "translates domain names",
+    "into IP addresses"
+   ],
+   "student": "It looks up names.",
+   "label": "partial"
+  },
+  {
+   "id": "g30",
+   "doc": "networks",
+   "question": "What does DNS do?",
+   "reference": "It translates domain names into IP addresses.",
+   "key_points": [
+    "translates domain names",
+    "into IP addresses"
+   ],
+   "student": "It encrypts web traffic.",
+   "label": "wrong"
+  },
+  {
+   "id": "g31",
+   "doc": "cell_biology",
+   "question": "What does the mitochondrion do?",
+   "reference": "It produces most of the cell's ATP through aerobic respiration.",
+   "key_points": [
+    "produces ATP",
+    "aerobic respiration"
+   ],
+   "student": "I don't know",
+   "label": "wrong"
+  },
+  {
+   "id": "g32",
+   "doc": "cell_biology",
+   "question": "What does the mitochondrion do?",
+   "reference": "It produces most of the cell's ATP through aerobic respiration.",
+   "key_points": [
+    "produces ATP",
+    "aerobic respiration"
+   ],
+   "student": "It produces most of the cell's ATP through aerobic respiration.",
+   "label": "correct"
+  },
+  {
+   "id": "g33",
+   "doc": "cell_biology",
+   "question": "What does the mitochondrion do?",
+   "reference": "It produces most of the cell's ATP through aerobic respiration.",
+   "key_points": [
+    "produces ATP",
+    "aerobic respiration"
+   ],
+   "student": "",
+   "label": "wrong"
+  }
+ ]
+}

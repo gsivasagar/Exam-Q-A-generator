@@ -266,3 +266,51 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
 - **The scheduled evaluation workflow is created together with the evaluation harness (Phase 1)** because it
   has nothing to run until then.
 - **Did not add a LICENSE.** Choosing one is the owner's decision.
+
+## Phase 1: evaluation harness (run last, as requested)
+- **Wrote my own study notes and queries instead of using your PDFs.** Why: the PDFs in `tmp/` are personal
+  documents (a CV and project write-ups) that should not be copied into the repository, and most are 2-5 chunks long,
+  too small to test retrieval. The 8 authored notes cover related topics that are easy to confuse (cell energy vs
+  photosynthesis, algorithms vs databases, thermodynamics vs economics) so retrieval is not trivial. Limitation:
+  I wrote both the notes and the questions, so the benchmark favours well-formed, fact-like questions.
+- **Scaled the chunk sizes down for the retrieval benchmark** (60 words / 90 tokens instead of 300 / 400). Why: the
+  notes are short; at full size each would be one or two chunks and retrieval would be trivial. This emulates long
+  documents but is a stand-in, so absolute numbers are indicative only.
+- **Judged every comparison with a paired bootstrap, not by eyeballing the table.** Why: with 68 queries the 95%
+  intervals are about +/-0.05 MRR; most differences I first read as wins were noise. My rule: change a default only
+  if the paired interval excludes zero (and nothing important regresses).
+- **Result: no default was flipped for retrieval or chunking.** Hybrid, structured chunking and parent expansion are
+  not distinguishable from the current default. The reranker helps but costs ~0.5-0.75 s per topic query and needs an
+  optional package, so it is documented and opt-in rather than default.
+- **Kept `coverage` as the default chunk-selection strategy, after fixing it.** The first Phase 4 version was weaker
+  than I claimed (see below). The source-aware version is strongly better in both measures, so the default is now
+  justified by data it did not have before.
+- **Added `fastembed:` as an embedder/reranker backend.** Why: it lets the retrieval pipeline be tested with real
+  models without an Ollama server, which found two real bugs and validated the reranker code path. It is optional.
+- **Stand-ins (`StubGenerator`, `LexicalGrader`) instead of skipping the generation/grading evaluation.** Why: they
+  keep the harness runnable and tested in CI and provide a floor (the lexical grader agrees with the labels 61-64% of
+  the time). They are clearly labelled as pipeline probes; nothing in the docs presents them as model quality.
+- **Regression floors (`eval/thresholds.json`) sit a little below today's results** and run weekly in CI, so a real
+  quality drop fails the job while noise does not. Raise them when quality improves.
+- **Honest corrections** (also in BASELINE_METRICS section 9): clustering-only selection was not better on documents
+  touched; the Ollama/fastembed embedders crashed on search until Phase 1; hybrid + parent expansion silently lost its
+  dense half; `generate_qa_pairs` complexity had crept back to 21 and was restored to 5. Two evaluation-tool bugs of my
+  own were caught by sanity-checking implausible numbers (a grader scoring everything correct; a duplicate rate
+  above 100%).
+- **Calibration labels are mine.** The 33 grading labels (correct/partial/wrong) were written by me. They are a
+  starting point; replace or extend them with real marking before trusting absolute grading numbers.
+
+## Phase 15: optional advanced work
+- **Built nothing, on purpose.** The plan said to do these only if the evaluation shows a gap worth the cost.
+  Retrieval is at recall@10 = 100% and recall@5 = 97% on the benchmark, so contextual retrieval (an LLM call per chunk
+  at upload) has little to gain here. RAPTOR and multimodal retrieval have no evidence of need and nothing to evaluate
+  them on without a model and diagram-heavy material.
+- **The "bounded agentic verify-and-regenerate loop" already exists** as a side effect of the quota design: a rejected
+  question leaves a shortfall and the bounded rounds regenerate it. Two tests prove it refills the quiz and that it
+  stops (at most `2 x max_rounds` calls) when everything is rejected.
+- **Revisit after a real-model run.** If the generation evaluation shows low citation correctness or many unusable
+  questions, contextual retrieval and a second regeneration pass are the first things to try.
+
+## Late refactor
+- **Split `generate_qa_pairs` again** (`_check_request`, `_choose_context`, `_fill_quota`; complexity 21 to 5). Proved
+  identical output to the previous code on 9 seeded scenarios before keeping it.

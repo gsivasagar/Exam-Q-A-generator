@@ -53,6 +53,13 @@ If you prefer running without Docker:
     streamlit run app/ui.py
     ```
 
+## 🧪 Quality and evaluation
+`eval/README.md` explains the benchmark (retrieval, chunk selection, generation, grading) and how to run it with or
+without a language model. Highlights measured on the bundled notes (details in `docs/BASELINE_METRICS.md`):
+a quiz built from several files now touches ~95% of them (random sampling: ~73%), and the optional reranker raises
+retrieval MRR from 0.89 to 0.94 at ~0.5-0.7 s extra per topic query:
+`pip install fastembed` then `RERANKER=fastembed:Xenova/ms-marco-MiniLM-L-6-v2`.
+
 ## 🗂 Saving and studying
 *   **Profile name** (sidebar): type one to keep your quizzes and progress between visits. It is a label, not a password.
 *   **My quizzes**: every quiz is saved; retake or delete it from the sidebar.
