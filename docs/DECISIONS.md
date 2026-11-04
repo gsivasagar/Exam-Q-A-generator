@@ -322,3 +322,15 @@ of each phase. Format: **Decision**, then **Why**, then **Alternatives rejected 
   its first import. I had checked `/_stcore/health` and the tests (which set `pythonpath`), neither of which exercises
   the real launch path. A regression test now starts the app with `python -I` (no PYTHONPATH, no current directory)
   and fails without the fix. Lesson: test the way the app is actually launched on each host.
+
+## Real-document evaluation (2026-11-05)
+
+Details and numbers: `docs/REAL_DOCUMENT_EVALUATION.md`.
+
+- **Used the user's five PDFs and a free-tier Gemini key.** The key was passed through an environment variable for each run only, never written to a file or log. *Why:* the user supplied it for testing; keeping it out of files means it cannot be committed.
+- **Raised the page and size limits for the evaluation runs only** (`MAX_PDF_PAGES`, `MAX_UPLOAD_MB` set in the environment). Defaults are unchanged. *Why:* two of the books exceed them, and the limit is a product decision, not an evaluation one.
+- **Added `--docs-dir`, `--queries` and `--max-configs` to `scripts/eval_retrieval.py`.** Defaults are unchanged, so the notes benchmark reproduces exactly. *Why:* the script was hard-wired to the 8 notes.
+- **Made hybrid the default for long documents** (follow-up, same day, at the owner's request): new `RETRIEVAL_MODE=auto` default, hybrid for documents of 20+ chunks (`HYBRID_MIN_CHUNKS`), dense below. *Why:* hybrid beat dense by +0.174 MRR (interval [+0.074, +0.288]) on real documents and was better or equal on each of five documents alone (22 to 891 chunks). *Why a threshold at all:* BM25 statistics mean little on a handful of chunks, and those documents go to the model whole anyway; 20 is just under the smallest size tested, so it is a floor, not a tuned value. *Cost:* about +0.4 s per topic query on a large collection. *Not done:* the reranker stays opt-in (it adds about 1.7 s per query on this CPU and showed no clear gain on top of hybrid, +0.063, interval includes 0). *Old behaviour:* `RETRIEVAL_MODE=dense`. `docs/CURRENT_METRICS.md` is a dated snapshot and still describes the old default.
+- **Wrote the 27 real-document queries myself and kept them out of git** (`eval/local/`, added to `.gitignore`). *Why:* they quote short passages from two copyrighted books, and queries written by the app's author favour the app. More queries from a second person would firm up the numbers.
+- **Stopped when the free-tier quota ran out (20 requests per day) and reported the partial run as partial.** *Why:* quota failures say nothing about the app, so they were excluded from quality figures, and I did not switch to other models mid-run, which would have mixed results.
+- **Installed `fastembed`** into the project's virtual environment to test the reranker on real documents. It is an optional dependency and is not added to the requirements.

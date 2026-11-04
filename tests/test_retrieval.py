@@ -147,3 +147,63 @@ def test_absent_topic_gives_clear_error(notes, monkeypatch):
     monkeypatch.setattr(config, "RETRIEVAL_MAX_DISTANCE", 0.2)
     with pytest.raises(ValueError, match="not found in your notes"):
         generate_qa_pairs("d", FakeLLM(), n=5, topic="quantum chromodynamics gluons")
+
+
+class TestAutoMode:
+    """RETRIEVAL_MODE=auto: hybrid for documents of at least HYBRID_MIN_CHUNKS chunks, dense below."""
+
+    @pytest.fixture
+    def spy(self, monkeypatch):
+        """Records whether the hybrid path (the only caller of get_all_chunks here) ran."""
+        from app import retrieval
+
+        calls = []
+        real = retrieval.get_all_chunks
+        monkeypatch.setattr(retrieval, "get_all_chunks", lambda d: (calls.append(d), real(d))[1])
+        return calls
+
+    def test_default_mode_is_auto(self):
+        import os
+        import subprocess
+        import sys
+
+        env = {k: v for k, v in os.environ.items() if k not in ("RETRIEVAL_MODE", "HYBRID_MIN_CHUNKS")}
+        out = subprocess.run([sys.executable, "-c", "from app import config; "
+                              "print(config.RETRIEVAL_MODE, config.HYBRID_MIN_CHUNKS)"],
+                             capture_output=True, text=True, env=env, check=True).stdout.split()
+        assert out == ["auto", "20"]
+
+    def test_count_chunks(self, notes):
+        from app.vector_store import count_chunks
+
+        assert count_chunks("d") == 5 and count_chunks("missing") == 0
+
+    def test_long_document_uses_hybrid(self, notes, monkeypatch, spy):
+        monkeypatch.setattr(config, "RETRIEVAL_MODE", "auto")
+        monkeypatch.setattr(config, "HYBRID_MIN_CHUNKS", 5)          # the notes have exactly 5 chunks
+        assert "TCP" in retrieve("SYN-ACK", "d", k=2)[0]["text"]
+        assert spy == ["d"]
+
+    def test_short_document_uses_dense(self, notes, monkeypatch, spy):
+        monkeypatch.setattr(config, "RETRIEVAL_MODE", "auto")
+        monkeypatch.setattr(config, "HYBRID_MIN_CHUNKS", 6)
+        retrieve("cellular energy production", "d", k=2)
+        assert spy == []
+
+    def test_explicit_modes_ignore_the_size_rule(self, notes, monkeypatch, spy):
+        monkeypatch.setattr(config, "HYBRID_MIN_CHUNKS", 1)
+        retrieve("energy", "d", k=2, mode="dense")
+        assert spy == []                                              # dense stays dense on a "long" document
+        monkeypatch.setattr(config, "HYBRID_MIN_CHUNKS", 10_000)
+        retrieve("energy", "d", k=2, mode="hybrid")
+        assert spy == ["d"]                                           # hybrid stays hybrid on a "short" one
+
+    def test_config_mode_dense_is_still_available(self, notes, monkeypatch, spy):
+        monkeypatch.setattr(config, "RETRIEVAL_MODE", "dense")
+        monkeypatch.setattr(config, "HYBRID_MIN_CHUNKS", 1)
+        retrieve("energy", "d", k=2)
+        assert spy == []
+
+    def test_unknown_document_set_is_empty(self, notes, monkeypatch):
+        monkeypatch.setattr(config, "RETRIEVAL_MODE", "auto")
+        assert retrieve("anything", "missing", k=3) == []

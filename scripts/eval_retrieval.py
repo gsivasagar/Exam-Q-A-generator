@@ -108,14 +108,18 @@ def main():
     ap.add_argument("--embedder", action="append", help="repeatable; default: the built-in MiniLM")
     ap.add_argument("--reranker", default="none")
     ap.add_argument("--out", default=None, help="results file (default eval/results/<date>-retrieval.json)")
+    ap.add_argument("--docs-dir", default=None, help="folder of .md/.pdf documents (default eval/docs)")
+    ap.add_argument("--queries", default=None, help="queries JSON (default eval/retrieval_queries.json)")
+    ap.add_argument("--max-configs", type=int, default=None, help="only the first N rows of the matrix (faster)")
     args = ap.parse_args()
 
-    spec = json.loads((ROOT / "eval" / "retrieval_queries.json").read_text())
+    spec = json.loads((Path(args.queries) if args.queries else ROOT / "eval" / "retrieval_queries.json").read_text())
     queries = spec["queries"]
-    docs = sorted((ROOT / "eval" / "docs").glob("*.md"))
+    docs_dir = Path(args.docs_dir) if args.docs_dir else ROOT / "eval" / "docs"
+    docs = sorted(p for p in docs_dir.iterdir() if p.suffix.lower() in (".md", ".pdf"))
     results = []
     for emb in args.embedder or ["default"]:
-        for name, chunking, mode, parent in MATRIX:
+        for name, chunking, mode, parent in MATRIX[:args.max_configs]:
             results.append(run_config(name, chunking, mode, parent, queries, docs, args.scale, emb, args.reranker))
 
     print(f"{len(queries)} queries, {len(docs)} documents, scale={args.scale}, reranker={args.reranker}")

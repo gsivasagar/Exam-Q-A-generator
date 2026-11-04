@@ -1,9 +1,16 @@
 """Topic retrieval: dense search, or hybrid (BM25 + dense fused with RRF), with optional reranking.
 
-RETRIEVAL_MODE=dense  (default) the original behaviour: top-k nearest chunks by embedding.
+RETRIEVAL_MODE=auto   (default) hybrid for documents with at least HYBRID_MIN_CHUNKS chunks, dense below that.
+                                Documents that fit the model's context are sent whole by the router and never
+                                reach retrieval, so in practice this means hybrid for long documents.
+RETRIEVAL_MODE=dense            the original behaviour: top-k nearest chunks by embedding.
 RETRIEVAL_MODE=hybrid           BM25 keyword ranking + dense ranking, fused with Reciprocal Rank Fusion.
                                 Catches exact terms (formulas, acronyms, names) that embeddings miss and
                                 returns nothing for a topic that does not appear in the document.
+
+Why: on five real PDFs (1,869 chunks) hybrid raised MRR from 0.37 to 0.54 (paired change +0.174, 95% interval
++0.074 to +0.288) and was better or equal on each document alone, from 22 to 891 chunks. On 8 short notes it made
+no measurable difference. See docs/REAL_DOCUMENT_EVALUATION.md.
 """
 from __future__ import annotations
 
@@ -12,10 +19,10 @@ from typing import Dict, List, Optional, Sequence
 from . import config
 from .bm25 import BM25
 from .rerank import Reranker, get_reranker
-from .vector_store import expand_parents, get_all_chunks, similarity_search
+from .vector_store import count_chunks, expand_parents, get_all_chunks, similarity_search
 
 RRF_K = 60
-MODES = ("dense", "hybrid")
+MODES = ("dense", "hybrid", "auto")
 
 
 def rrf_fuse(rankings: Sequence[Sequence[int]], k: int = RRF_K) -> List[int]:
@@ -35,12 +42,20 @@ def _dense(query: str, doc_id: str, k: int, expand: bool = False) -> List[dict]:
     return hits
 
 
+def resolve_mode(mode: str, doc_id: str) -> str:
+    """"auto" becomes "hybrid" for a document of at least HYBRID_MIN_CHUNKS chunks, else "dense"."""
+    if mode != "auto":
+        return mode
+    return "hybrid" if count_chunks(doc_id) >= config.HYBRID_MIN_CHUNKS else "dense"
+
+
 def retrieve(query: str, doc_id: str, *, k: int = 30, mode: Optional[str] = None,
              reranker: Optional[Reranker] = None, candidates: Optional[int] = None) -> List[dict]:
     """Chunks relevant to `query` in one document set, best first (at most k)."""
     mode = (mode or config.RETRIEVAL_MODE).lower()
     if mode not in MODES:
         raise ValueError(f"retrieval mode must be one of {MODES}")
+    mode = resolve_mode(mode, doc_id)
     reranker = reranker if reranker is not None else get_reranker()
 
     if mode == "dense":
