@@ -81,6 +81,9 @@ MAX_UPLOAD_MB = float(os.getenv("MAX_UPLOAD_MB", "25"))
 MAX_PDF_PAGES = int(os.getenv("MAX_PDF_PAGES", "300"))
 URL_TIMEOUT = float(os.getenv("URL_TIMEOUT", "15"))
 OCR_MODE = os.getenv("OCR_MODE", "auto").strip().lower()
+# Reading scanned PDFs and images with Gemini costs one model call per page, so a scan longer than this is
+# refused with a clear message instead of silently truncated or quietly using up the quota.
+OCR_MAX_PAGES = int(os.getenv("OCR_MAX_PAGES", "30"))
 
 # Uploaded documents are forgotten from the vector store after this many days (0 = never).
 DOC_TTL_DAYS = float(os.getenv("DOC_TTL_DAYS", "7"))

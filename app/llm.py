@@ -181,6 +181,26 @@ class GeminiProvider(_BaseProvider):
         except Exception as exc:
             raise LLMError(f"Gemini request failed: {exc}") from exc
 
+    def generate_from_file(self, prompt: str, data: bytes, mime_type: str, *,
+                           temperature: Optional[float] = None) -> str:
+        """Send one file (a PDF page or an image) together with `prompt` and return the text reply.
+        Used for reading scanned pages; goes through the same retries and usage bookkeeping."""
+        started = time.perf_counter()
+        try:
+            from google.genai import types
+
+            cfg = self._config(None, temperature)
+            part = types.Part.from_bytes(data=data, mime_type=mime_type)
+            contents: List[types.PartUnionDict] = [part, prompt]
+            resp = self._call(lambda: self._client.models.generate_content(
+                model=self.model, contents=contents, config=cfg))
+            usage = getattr(resp, "usage_metadata", None)
+            self._record(started, getattr(usage, "prompt_token_count", None),
+                         getattr(usage, "candidates_token_count", None))
+            return resp.text or ""
+        except Exception as exc:
+            raise LLMError(f"Gemini request failed: {exc}") from exc
+
 
 def _get(resp, key):
     """Read a field from an ollama response (pydantic object or dict)."""

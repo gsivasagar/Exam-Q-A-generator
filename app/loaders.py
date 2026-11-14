@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 
 from . import config
+from .ocr import image_mime
 from .pdf_loader import Chunk, EmptyPDFError, chunks_from_pages, load_pdf
 
 SUPPORTED_EXTENSIONS = ("pdf", "docx", "pptx", "md", "markdown", "txt")
@@ -30,9 +31,11 @@ def _extension(filename: str) -> str:
 
 
 def detect_format(data: bytes, filename: str) -> str:
-    """"pdf" | "docx" | "pptx" | "text". Content wins over the file extension."""
+    """"pdf" | "docx" | "pptx" | "image" | "text". Content wins over the file extension."""
     if data[:5] == b"%PDF-":
         return "pdf"
+    if image_mime(data):
+        return "image"
     if data[:4] == b"PK\x03\x04":
         try:
             names = set(zipfile.ZipFile(io.BytesIO(data)).namelist())
@@ -42,10 +45,10 @@ def detect_format(data: bytes, filename: str) -> str:
             return "docx"
         if any(n.startswith("ppt/slides/slide") for n in names):
             return "pptx"
-        raise UploadError("Unsupported archive. Upload a PDF, DOCX, PPTX, Markdown or text file.")
+        raise UploadError("Unsupported archive. Upload a PDF, DOCX, PPTX, image, Markdown or text file.")
     if _extension(filename) in ("md", "markdown", "txt"):
         return "text"
-    raise UploadError(f"Unsupported file type '{filename}'. Upload a PDF, DOCX, PPTX, Markdown or text file.")
+    raise UploadError(f"Unsupported file type '{filename}'. Upload a PDF, DOCX, PPTX, image, Markdown or text file.")
 
 
 def check_size(size: int, limit_mb: Optional[float] = None) -> None:
@@ -231,6 +234,14 @@ def load_document(data: bytes, filename: str, *, ocr=None) -> List[Chunk]:
         if n_pages > config.MAX_PDF_PAGES:
             raise UploadError(f"This PDF has {n_pages} pages; the limit is {config.MAX_PDF_PAGES}.")
         return load_pdf(io.BytesIO(data), ocr=ocr)
+    if kind == "image":
+        if ocr is None:
+            raise UploadError("Reading an image needs the Gemini provider. Choose Gemini in the sidebar "
+                              "and enter an API key, or upload a PDF, Word or text file.")
+        chunks = chunks_from_pages(ocr(data), paged=False)
+        if not chunks:
+            raise EmptyPDFError("No readable text found in this image.")
+        return chunks
     try:
         if kind == "docx":
             pages, paged = read_docx(data), False

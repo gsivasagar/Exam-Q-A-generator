@@ -32,13 +32,15 @@ __all__ = [
 ]
 
 
-def ingest_document(source, doc_id: str, filename: str = "upload.pdf", data: Optional[bytes] = None) -> int:
-    """Chunk an uploaded document (PDF, DOCX, PPTX, Markdown or text) and store it under doc_id.
-    `source` is a path or file-like, or None when `data` is given. Re-ingesting identical bytes is
-    idempotent. Raises UploadError for unsupported/too large files."""
+def ingest_document(source, doc_id: str, filename: str = "upload.pdf", data: Optional[bytes] = None,
+                    ocr=None) -> int:
+    """Chunk an uploaded document (PDF, DOCX, PPTX, image, Markdown or text) and store it under doc_id.
+    `source` is a path or file-like, or None when `data` is given. `ocr(data) -> list[str]` reads scanned
+    PDFs and images (see `app.ocr.gemini_ocr`). Re-ingesting identical bytes is idempotent. Raises
+    UploadError for unsupported/too large files."""
     if data is None:
         data = source.read() if hasattr(source, "read") else open(source, "rb").read()
-    chunks = load_document(data, filename)
+    chunks = load_document(data, filename, ocr=ocr)
     return add_chunks(chunks, doc_id, source=filename, file_id=file_hash(data))
 
 
