@@ -89,3 +89,22 @@ OCR_MAX_PAGES = int(os.getenv("OCR_MAX_PAGES", "30"))
 DOC_TTL_DAYS = float(os.getenv("DOC_TTL_DAYS", "7"))
 
 PASS_THRESHOLD = 0.6
+
+
+# Accounts and the HTTP API. AUTH_SECRET signs access tokens: set a long random value in production (the API
+# refuses to start without one when APP_ENV=production). Leaving it unset in development uses a throwaway
+# secret, so tokens stop working whenever the server restarts.
+APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+AUTH_SECRET = os.getenv("AUTH_SECRET", "")
+ACCESS_TTL_MIN = int(os.getenv("ACCESS_TTL_MIN", "15"))
+REFRESH_TTL_DAYS = int(os.getenv("REFRESH_TTL_DAYS", "30"))
+# A session cookie (no "keep me signed in") is also refused after this many hours on the server side.
+SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "12"))
+GUEST_TTL_DAYS = int(os.getenv("GUEST_TTL_DAYS", "7"))
+GUEST_MAX_FILES = int(os.getenv("GUEST_MAX_FILES", "3"))
+GUEST_MAX_UPLOAD_MB = float(os.getenv("GUEST_MAX_UPLOAD_MB", "10"))
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "0" if APP_ENV != "production" else "1") == "1"
+APP_ORIGIN = os.getenv("APP_ORIGIN", "http://localhost:5173").rstrip("/")
+# How many reverse proxies sit in front of the API (0 = none). The client address is read from X-Forwarded-For
+# only that many hops from the right, so a visitor cannot make up their own address.
+TRUSTED_PROXY_HOPS = int(os.getenv("TRUSTED_PROXY_HOPS", "0"))

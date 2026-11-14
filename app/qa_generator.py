@@ -33,7 +33,7 @@ __all__ = [
 
 
 def ingest_document(source, doc_id: str, filename: str = "upload.pdf", data: Optional[bytes] = None,
-                    ocr=None) -> int:
+                    ocr=None, owner_id: Optional[str] = None) -> int:
     """Chunk an uploaded document (PDF, DOCX, PPTX, image, Markdown or text) and store it under doc_id.
     `source` is a path or file-like, or None when `data` is given. `ocr(data) -> list[str]` reads scanned
     PDFs and images (see `app.ocr.gemini_ocr`). Re-ingesting identical bytes is idempotent. Raises
@@ -41,16 +41,16 @@ def ingest_document(source, doc_id: str, filename: str = "upload.pdf", data: Opt
     if data is None:
         data = source.read() if hasattr(source, "read") else open(source, "rb").read()
     chunks = load_document(data, filename, ocr=ocr)
-    return add_chunks(chunks, doc_id, source=filename, file_id=file_hash(data))
+    return add_chunks(chunks, doc_id, source=filename, file_id=file_hash(data), owner_id=owner_id)
 
 
 ingest_pdf = ingest_document  # original name, kept for existing callers
 
 
-def ingest_url(url: str, doc_id: str) -> int:
+def ingest_url(url: str, doc_id: str, owner_id: Optional[str] = None) -> int:
     """Download a web page (or PDF) and store its text under doc_id."""
     chunks, name = load_web_page(url)
-    return add_chunks(chunks, doc_id, source=name, file_id=file_hash(url.encode("utf-8")))
+    return add_chunks(chunks, doc_id, source=name, file_id=file_hash(url.encode("utf-8")), owner_id=owner_id)
 
 
 def _generate_batch(llm: LLMProvider, hits: List[dict], n: int, topic: Optional[str], qtype: str,

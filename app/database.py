@@ -1,7 +1,9 @@
 """SQLite persistence of graded results, scoped by session."""
 import sqlite3
+import threading
 from contextlib import closing
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
@@ -15,13 +17,15 @@ def _connect(path=None):
     return sqlite3.connect(p)
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def migrate(conn: sqlite3.Connection) -> int:
     """Bring the database up to SCHEMA_VERSION, one numbered step at a time (tracked with PRAGMA
     user_version). Safe to run repeatedly, and on databases created before versioning existed."""
-    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    version = start = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version >= SCHEMA_VERSION:
+        return version  # already current: no write, so readers never take the write lock for nothing
     if version < 1:  # original results table
         conn.execute("""CREATE TABLE IF NOT EXISTS results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,14 +46,49 @@ def migrate(conn: sqlite3.Connection) -> int:
         conn.execute("CREATE TABLE IF NOT EXISTS docs (doc_id TEXT PRIMARY KEY, created_at TEXT NOT NULL)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_results_session ON results(session_id)")
         version = 2
-    conn.execute(f"PRAGMA user_version = {version}")
+    if version < 3:  # accounts, login sessions, per-user documents, graded attempts
+        conn.execute("""CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY, email TEXT UNIQUE, password_hash TEXT,
+            is_guest INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, expires_at TEXT)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS sessions (
+            id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token_hash TEXT NOT NULL UNIQUE, prev_hash TEXT, rotated_at TEXT, user_agent TEXT,
+            remember INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, last_used_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL, revoked_at TEXT)""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_prev ON sessions(prev_hash)")
+        conn.execute("""CREATE TABLE IF NOT EXISTS attempts (
+            id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, quiz_id TEXT NOT NULL, created_at TEXT NOT NULL,
+            result_json TEXT NOT NULL)""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_attempts_quiz ON attempts(owner_id, quiz_id, created_at)")
+        have = {r[1] for r in conn.execute("PRAGMA table_info(docs)")}
+        for col, ddl in (("owner_id", "TEXT"), ("name", "TEXT"), ("pages", "INTEGER"), ("method", "TEXT"),
+                         ("tables_n", "INTEGER"), ("figures_n", "INTEGER")):
+            if col not in have:
+                conn.execute(f"ALTER TABLE docs ADD COLUMN {col} {ddl}")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_docs_owner ON docs(owner_id)")
+        version = 3
+    if version != start:
+        conn.execute(f"PRAGMA user_version = {version}")
     conn.commit()
     return version
 
 
+_ready: set = set()  # database files already brought up to SCHEMA_VERSION by this process
+_ready_lock = threading.Lock()
+
+
 def init_db(path=None) -> None:
-    with closing(_connect(path)) as conn:
-        migrate(conn)
+    """Make sure the schema is current. Every storage function calls this, so after the first call per file
+    it is only a set lookup and a file check (a deleted file, as in tests, is created again)."""
+    p = Path(path or config.DB_PATH)
+    key = str(p.resolve()) if p.exists() else None
+    if key in _ready:
+        return
+    with _ready_lock:
+        with closing(_connect(p)) as conn:
+            migrate(conn)
+        _ready.add(str(p.resolve()))
 
 
 def delete_owner_data(owner: str, path=None) -> dict:

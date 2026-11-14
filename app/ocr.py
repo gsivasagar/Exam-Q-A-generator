@@ -13,6 +13,8 @@ OCR_MODE=auto (default) runs OCR only when a PDF has no extractable text; OCR_MO
 from __future__ import annotations
 
 import io
+import re
+import threading
 from typing import Callable, List, Optional
 
 from . import config
@@ -68,13 +70,30 @@ def _split_pdf(data: bytes) -> List[bytes]:
     return pages
 
 
-def gemini_ocr(llm, *, max_pages: Optional[int] = None) -> Callable[[bytes], List[str]]:
+def count_tables_and_figures(text: str) -> tuple:
+    """(tables, figures) in one page of recognised text: Markdown tables (a header separator row) and
+    [Figure: ...] lines, as asked for in the reading prompt."""
+    tables = len(re.findall(r"^\s*\|?\s*:?-{3,}:?\s*\|", text, re.M))
+    figures = len(re.findall(r"^\s*\[Figure:", text, re.M))
+    return tables, figures
+
+
+def gemini_ocr(llm, *, max_pages: Optional[int] = None,
+               on_progress: Optional[Callable[[int, int, int, int], None]] = None) -> Callable[[bytes], List[str]]:
     """An `ocr(data) -> list[str]` that reads a scanned PDF (one page per call) or one image with Gemini.
-    `llm` must offer `generate_from_file(prompt, data, mime_type)` (GeminiProvider does)."""
+    `llm` must offer `generate_from_file(prompt, data, mime_type)` (GeminiProvider does).
+    `on_progress(pages_done, pages, tables, figures)` is called as pages finish, from the calling thread."""
+    tally = {"tables": 0, "figures": 0}
+    lock = threading.Lock()
 
     def read(data: bytes, mime: str) -> str:
         text = llm.generate_from_file(_PAGE_PROMPT, data, mime).strip()
-        return "" if text == _BLANK else text
+        text = "" if text == _BLANK else text
+        t, f = count_tables_and_figures(text)
+        with lock:
+            tally["tables"] += t
+            tally["figures"] += f
+        return text
 
     def run(data: bytes) -> List[str]:
         if config.OCR_MODE == "off":
@@ -88,8 +107,15 @@ def gemini_ocr(llm, *, max_pages: Optional[int] = None) -> Callable[[bytes], Lis
             raise OCRLimitError(
                 f"This scanned PDF has {len(pages)} pages; reading scans with Gemini is limited to {limit} "
                 f"(OCR_MAX_PAGES). Split the file, or use a PDF that has a text layer.")
-        return run_parallel(lambda page: read(page, "application/pdf"), pages, effective_workers(llm))
 
+        def report(done: int, total: int) -> None:
+            assert on_progress is not None
+            on_progress(done, total, tally["tables"], tally["figures"])
+
+        return run_parallel(lambda page: read(page, "application/pdf"), pages, effective_workers(llm),
+                            report if on_progress else None)
+
+    run.tally = tally  # type: ignore[attr-defined]  # tables and figures kept so far, read after the run
     return run
 
 
