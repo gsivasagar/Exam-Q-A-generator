@@ -1,0 +1,4 @@
+[server]
+# Matches the app's own limit (MAX_UPLOAD_MB, 25 by default); the Streamlit default of 200 MB made the
+# upload box promise more than the app accepts. If you raise MAX_UPLOAD_MB, raise this too.
+maxUploadSize = 25

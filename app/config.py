@@ -93,6 +93,10 @@ DOC_TTL_DAYS = float(os.getenv("DOC_TTL_DAYS", "7"))
 PASS_THRESHOLD = 0.6
 
 
+# Provider preselected in the Streamlit sidebar: "auto" (Ollama if it answers at OLLAMA_BASE_URL, otherwise
+# Gemini; a hosted copy has no Ollama), "ollama" or "gemini".
+DEFAULT_PROVIDER = os.getenv("DEFAULT_PROVIDER", "auto").strip().lower()
+
 # Accounts and the HTTP API. AUTH_SECRET signs access tokens: set a long random value in production (the API
 # refuses to start without one when APP_ENV=production). Leaving it unset in development uses a throwaway
 # secret, so tokens stop working whenever the server restarts.

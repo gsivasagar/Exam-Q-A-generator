@@ -21,7 +21,7 @@ from app.concurrency import effective_workers
 from app.database import delete_owner_data, load_results, store_results
 from app.exports import exam_pdf, to_anki_tsv, to_csv
 from app.grader import grade_all, regrade_failed
-from app.llm import GeminiProvider, LLMError, get_provider
+from app.llm import GeminiProvider, LLMError, default_provider, get_provider
 from app.logging_config import setup_logging
 from app.maintenance import cleanup_expired, forget_doc, register_doc
 from app.ocr import gemini_ocr
@@ -51,7 +51,10 @@ st.title("📚 Exam Q&A Generator")
 
 # ───────────── Sidebar ─────────────
 st.sidebar.title("⚙️ Configuration")
-provider = st.sidebar.radio("Select LLM Provider", ["Ollama", "Gemini"])
+if "default_provider" not in st.session_state:  # checked once per browser session, not on every rerun
+    st.session_state.default_provider = default_provider()
+provider = st.sidebar.radio("Select LLM Provider", ["Ollama", "Gemini"],
+                            index=["Ollama", "Gemini"].index(st.session_state.default_provider))
 gemini_api_key, ollama_model = "", config.OLLAMA_MODEL
 if provider == "Gemini":
     gemini_api_key = st.sidebar.text_input("Gemini API Key", type="password") or config.GEMINI_API_KEY
