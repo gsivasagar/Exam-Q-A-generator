@@ -50,10 +50,12 @@ CHUNK_TARGET_TOKENS = int(os.getenv("CHUNK_TARGET_TOKENS", "400"))
 CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", "60"))
 PARENT_EXPANSION = os.getenv("PARENT_EXPANSION", "false").strip().lower() in {"1", "true", "yes", "on"}
 
-# Topic retrieval: "dense" (default) or "hybrid" (BM25 + dense, fused). RERANKER: "none" or
-# "fastembed:<model>" (optional dependency). RETRIEVAL_MAX_DISTANCE drops dense hits farther than this
-# (unset = keep all); with hybrid it also lets a topic that is absent from the notes return nothing.
-RETRIEVAL_MODE = os.getenv("RETRIEVAL_MODE", "dense").strip().lower()
+# Topic retrieval: "auto" (default: hybrid for documents of at least HYBRID_MIN_CHUNKS chunks, dense below that),
+# "dense" or "hybrid" (BM25 + dense, fused). RERANKER: "none" or "fastembed:<model>" (optional dependency).
+# RETRIEVAL_MAX_DISTANCE drops dense hits farther than this (unset = keep all); with hybrid it also lets a
+# topic that is absent from the notes return nothing.
+RETRIEVAL_MODE = os.getenv("RETRIEVAL_MODE", "auto").strip().lower()
+HYBRID_MIN_CHUNKS = int(os.getenv("HYBRID_MIN_CHUNKS", "20"))
 RERANKER = os.getenv("RERANKER", "none").strip()
 RERANK_CANDIDATES = int(os.getenv("RERANK_CANDIDATES", "20"))
 RETRIEVAL_MAX_DISTANCE = (float(os.environ["RETRIEVAL_MAX_DISTANCE"])

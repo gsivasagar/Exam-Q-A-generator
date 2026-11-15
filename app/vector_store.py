@@ -141,6 +141,11 @@ def get_all_chunks(doc_id) -> List[Hit]:
     return _hits(res["documents"], res["metadatas"], res.get("embeddings"))
 
 
+def count_chunks(doc_id: str) -> int:
+    """How many chunks a document set has (ids only: no text or embeddings are loaded)."""
+    return len(_collection().get(where={"doc_id": doc_id}, include=[])["ids"])
+
+
 def delete_doc(doc_id: str) -> None:
     _collection().delete(where=_where(doc_id))
 

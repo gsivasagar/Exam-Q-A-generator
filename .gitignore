@@ -11,3 +11,4 @@ chroma_data/
 chroma.log
 *.db
 .pytest_cache/
+eval/local/
