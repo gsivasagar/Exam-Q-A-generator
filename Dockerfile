@@ -25,6 +25,7 @@ RUN python -c "from chromadb.utils.embedding_functions import DefaultEmbeddingFu
     && rm -f /home/app/.cache/chroma/onnx_models/*/onnx.tar.gz
 
 COPY --chown=app:app app ./app
+COPY --chown=app:app .streamlit ./.streamlit
 EXPOSE 8501
 
 # No curl in the image: use Python for the health check.

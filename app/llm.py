@@ -223,3 +223,21 @@ def get_provider(
 
         return CachedProvider(llm, config.LLM_CACHE_DIR)
     return llm
+
+
+def ollama_reachable(url: str | None = None, timeout: float = 0.7) -> bool:
+    """True if an Ollama server answers at `url`. Used only to pick the default provider."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen((url or config.OLLAMA_URL).rstrip("/") + "/api/tags", timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
+def default_provider() -> str:
+    """The provider to preselect: "Ollama" or "Gemini" (see config.DEFAULT_PROVIDER)."""
+    choice = config.DEFAULT_PROVIDER
+    if choice in {"ollama", "gemini"}:
+        return choice.capitalize()
+    return "Ollama" if ollama_reachable() else "Gemini"

@@ -52,3 +52,10 @@ def store(tmp_path, monkeypatch):
     vector_store._collection.cache_clear()
     yield vector_store
     vector_store._collection.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _fixed_default_provider(monkeypatch):
+    """Keep tests off the network: never probe for a local Ollama server."""
+    from app import config
+    monkeypatch.setattr(config, "DEFAULT_PROVIDER", "ollama")
