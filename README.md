@@ -1,4 +1,4 @@
-# Exam Q&A Generator with Ollama 📚
+# QuizForge: Exam Q&A Generator 📚
 
 An interactive tool that generates educational quizzes from your study PDF notes using local LLMs via [Ollama](https://ollama.com).
 

@@ -26,7 +26,7 @@ def app(store, tmp_path, monkeypatch):
 def test_page_loads(app):
     app.run()
     assert not app.exception
-    assert app.title[0].value.endswith("Exam Q&A Generator")
+    assert app.title[0].value.endswith("QuizForge")
 
 
 def test_full_quiz_flow(app, monkeypatch):
