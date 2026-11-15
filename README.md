@@ -2,6 +2,8 @@
 
 An interactive tool that generates educational quizzes from your study PDF notes using local LLMs via [Ollama](https://ollama.com).
 
+**Live demo:** https://exam-q-a-generator-ml8ost5r2xjygiv92bbmq5.streamlit.app/ (the Streamlit app, using Google Gemini; you enter your own API key in the sidebar). The HTTP API and React app below are not deployed; run them locally.
+
 ## ✨ Features
 *   **PDF Ingestion**: Upload your study materials directly.
 *   **AI Question Generation**: Automatically creates quiz questions based on your content.
@@ -74,9 +76,27 @@ PDF, Word (`.docx`), PowerPoint (`.pptx`), Markdown, plain text, or a web page a
 *   **Model**: Defaults to `gemma3:latest`. Change `OLLAMA_MODEL` in `docker-compose.yml` or `.env` to use a different model.
 *   **Ollama URL**: Defaults to `http://localhost:11434`.
 *   **Embedding model**: `EMBEDDING_MODEL` is `default` (built-in MiniLM, no setup) or `ollama:<model>`, e.g. `ollama:bge-m3` or `ollama:nomic-embed-text` (run `ollama pull <model>` first). Each embedder uses its own vector store, so switching never mixes vectors.
+*   **Retrieval**: `RETRIEVAL_MODE=auto` (default) uses hybrid search (keyword BM25 plus semantic, fused) for documents with at least `HYBRID_MIN_CHUNKS` (20) chunks and plain semantic search below that; `dense` or `hybrid` force one. On five real PDFs (1,869 chunks, 27 questions I wrote) hybrid raised retrieval MRR from 0.37 to 0.54; on the 8 short notes it made no measurable difference. It adds about 0.4 s per topic query on a large collection. Documents that fit the model's context are sent whole and never reach retrieval. Numbers and limits: `docs/REAL_DOCUMENT_EVALUATION.md`. The optional reranker stays off unless `RERANKER` is set.
 *   **Chunk selection**: `SELECTION_STRATEGY=coverage` (default) or `random`.
 *   **Grading**: `GRADING_MODE=rubric` (default) scores short answers by the key points they cover, computed in code; `holistic` asks the model for a 0-1 score. Blank / "I don't know" and exact-match answers are scored without calling the model.
 *   **Speed**: independent LLM calls can run in parallel. Gemini defaults to 4 at once (`GEMINI_CONCURRENCY`); Ollama defaults to 1 (`OLLAMA_CONCURRENCY`; raise it together with Ollama's `OLLAMA_NUM_PARALLEL`). `LLM_CACHE_DIR` caches identical requests on disk (useful for development and evaluation).
+
+## 🌐 HTTP API and React app (in progress)
+Besides the Streamlit app there is a FastAPI back end (`app/api/`) and a React + TypeScript + Vite front end (`frontend/`). They reuse the same ingestion, quiz generation and grading code.
+
+*   **Accounts**: email and password (argon2id, 12 to 128 characters), or a guest session that expires after `GUEST_TTL_DAYS` (7) and can be upgraded to an account in place. Access tokens are short JWTs (`ACCESS_TTL_MIN`, 15) held in memory by the page; a rotating refresh token lives in an httpOnly cookie and is stored on the server only as a hash. Reusing an old refresh token signs that session out.
+*   **Per-account data**: every document, quiz and session has an owner, and so does every chunk in the vector store. Another account's item always returns 404. A test runs every route as a second account and fails if a new route is not covered.
+*   **Account page**: change password, list and sign out devices, download your data, delete the account.
+*   **Not done yet**: chat (the endpoint returns 501 in this version), exports and the review queue in the React app, password reset and email verification. Rate limits are kept in memory.
+*   **Status**: tested with FastAPI's test client, a fake server for the front end, and one run of the Gemini calls. It has not been used in production. Details, trade-offs and limits: `docs/SYSTEM_DOCUMENTATION.md`, `frontend/API.md`, `frontend/README.md`.
+
+Run it (Python 3.11 or newer; Node 20.19 or newer for the front end):
+```bash
+python -m pip install --only-binary=:all: -r requirements.txt
+AUTH_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))") python -m uvicorn app.api.main:app --port 8000
+cd frontend && npm ci && npm run dev      # open http://localhost:5173
+```
+Settings: `APP_ENV` (`production` turns on secure cookies and refuses to start without a real `AUTH_SECRET`), `AUTH_SECRET`, `APP_ORIGIN`, `COOKIE_SECURE`, `GUEST_MAX_FILES`, `GUEST_MAX_UPLOAD_MB`, `TRUSTED_PROXY_HOPS` (the number of proxies in front of the server, so rate limits see the real address). See `app/config.py`.
 
 ## 🧪 Development
 ```bash
@@ -85,4 +105,4 @@ pytest
 ruff check app tests        # lint (pip install ruff, or: uvx ruff check app tests)
 ```
 Optional: `pre-commit install` runs ruff before every commit.
-Tests use a fake LLM and a real temporary Chroma store, so no Ollama is needed.
+Tests use a fake LLM and a real temporary Chroma store, so no Ollama is needed. Front end: `cd frontend && npm test` (also `npm run typecheck`, `npm run lint`, `npm run build`).
