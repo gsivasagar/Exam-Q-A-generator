@@ -1,4 +1,4 @@
-# Exam Q&A Generator: small, non-root, reproducible image.
+# QuizForge: small, non-root, reproducible image.
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

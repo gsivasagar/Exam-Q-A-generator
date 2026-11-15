@@ -1,6 +1,6 @@
-# Exam Q&A Generator with Ollama 📚
+# QuizForge 📚
 
-An interactive tool that generates educational quizzes from your study PDF notes using local LLMs via [Ollama](https://ollama.com).
+QuizForge generates quizzes from your study material (PDF, Word, PowerPoint, Markdown, web pages, scans) with a local model through [Ollama](https://ollama.com) or with Google Gemini, then grades your answers.
 
 **Live demo:** https://exam-q-a-generator-ml8ost5r2xjygiv92bbmq5.streamlit.app/ (the Streamlit app, using Google Gemini; you enter your own API key in the sidebar). The HTTP API and React app below are not deployed; run them locally.
 

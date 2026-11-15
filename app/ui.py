@@ -35,7 +35,7 @@ from app.vector_store import delete_doc
 
 setup_logging()
 
-st.set_page_config(page_title="Exam Q&A Generator", page_icon="📚", layout="wide")
+st.set_page_config(page_title="QuizForge", page_icon="📚", layout="wide")
 
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
@@ -47,7 +47,7 @@ if "maintained" not in st.session_state:  # once per browser session: forget old
     except Exception as exc:  # housekeeping must never stop the app
         logging.getLogger(__name__).warning("Cleanup skipped: %s", exc)
 
-st.title("📚 Exam Q&A Generator")
+st.title("📚 QuizForge")
 
 # ───────────── Sidebar ─────────────
 st.sidebar.title("⚙️ Configuration")
