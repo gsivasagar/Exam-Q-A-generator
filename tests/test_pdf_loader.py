@@ -53,3 +53,14 @@ def test_chunks_carry_page_numbers_and_never_span_pages():
         marker = {1: "ALPHA", 2: "BETA", 3: "GAMMA"}[c.page]
         assert marker in c.text
         assert not any(m in c.text for m in {"ALPHA", "BETA", "GAMMA"} - {marker})
+
+
+def test_ligatures_are_turned_into_plain_letters():
+    """LaTeX PDFs store "fi" and "fl" as one character; search for "fixed" must still find "\ufb01xed"."""
+    from app.pdf_loader import chunks_from_pages
+
+    text = ("The \ufb01xed-length vector limits the \ufb02ow; an e\ufb03cient, di\ufb00erent model. " * 8).strip()
+    chunk = chunks_from_pages([text])[0].text
+    assert "fixed-length" in chunk and "flow" in chunk and "efficient" in chunk and "different" in chunk
+    assert not any(c in chunk for c in "\ufb00\ufb01\ufb02\ufb03\ufb04")
+

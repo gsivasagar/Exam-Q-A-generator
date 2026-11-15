@@ -21,9 +21,10 @@ from app.concurrency import effective_workers
 from app.database import delete_owner_data, load_results, store_results
 from app.exports import exam_pdf, to_anki_tsv, to_csv
 from app.grader import grade_all, regrade_failed
-from app.llm import LLMError, get_provider
+from app.llm import GeminiProvider, LLMError, get_provider
 from app.logging_config import setup_logging
 from app.maintenance import cleanup_expired, forget_doc, register_doc
+from app.ocr import gemini_ocr
 from app.pdf_loader import EmptyPDFError
 from app.qa_generator import generate_qa_pairs, ingest_document, ingest_url
 from app.quizzes import delete_quiz, list_quizzes, load_quiz, save_quiz
@@ -89,8 +90,13 @@ def begin_attempt(quiz_id, questions, route=None):
 
 
 # ───────────── Upload & options ─────────────
-uploaded_files = st.file_uploader("Upload one or more study files (PDF, Word, PowerPoint, Markdown, text)",
-                                  type=["pdf", "docx", "pptx", "md", "markdown", "txt"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload one or more study files (PDF, Word, PowerPoint, Markdown, text, or "
+                                  "an image with Gemini)",
+                                  type=["pdf", "docx", "pptx", "md", "markdown", "txt", "png", "jpg", "jpeg", "webp"],
+                                  accept_multiple_files=True)
+if provider == "Gemini" and gemini_api_key and config.OCR_MODE != "off":
+    st.caption("Scanned PDFs and images are read with Gemini: each page is sent to Google and counts against "
+               f"your quota (up to {config.OCR_MAX_PAGES} pages per file).")
 web_url = st.text_input("…or paste a web page address (optional)")
 topic_filter = st.text_input("🔍 *Optional topic filter* – only generate questions about this topic")
 num_q = st.slider("Number of quiz questions", min_value=5, max_value=25, value=10)
@@ -132,8 +138,10 @@ if (uploaded_files or web_url.strip()) and st.button("Create Quiz"):
     try:
         register_doc(doc_id)
         with st.spinner("Ingesting your files and generating questions – please wait …"):
+            reader = (gemini_ocr(GeminiProvider(gemini_api_key))
+                      if provider == "Gemini" and gemini_api_key and config.OCR_MODE != "off" else None)
             for f in uploaded_files or []:
-                ingest_document(None, doc_id, filename=f.name, data=f.getvalue())
+                ingest_document(None, doc_id, filename=f.name, data=f.getvalue(), ocr=reader)
             if web_url.strip():
                 ingest_url(web_url.strip(), doc_id)
             names = ", ".join([f.name for f in uploaded_files or []] + ([web_url.strip()] if web_url.strip() else []))

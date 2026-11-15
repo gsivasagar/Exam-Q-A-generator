@@ -52,6 +52,51 @@ def test_full_quiz_flow(app, monkeypatch):
     assert any("Average Score" == m.label for m in app.metric)
 
 
+def _upload(monkeypatch, name, data):
+    import streamlit as st
+
+    class Up:
+        def getvalue(self): return data
+    Up.name = name
+    monkeypatch.setattr(st, "file_uploader", lambda *a, **k: [Up()])
+
+
+def test_scanned_pdf_is_read_with_gemini_when_selected(app, monkeypatch):
+    from fpdf import FPDF
+    from app.llm import GeminiProvider
+
+    pdf = FPDF()
+    for _ in range(2):
+        pdf.add_page()  # no text layer: a scan
+    reads = []
+
+    def fake_read(self, prompt, data, mime, **_):
+        reads.append(mime)
+        return "Ribosomes build proteins from amino acids. " * 12
+
+    monkeypatch.setattr(GeminiProvider, "generate_from_file", fake_read)
+    _upload(monkeypatch, "scan.pdf", bytes(pdf.output()))
+
+    app.run()
+    next(r for r in app.radio if r.label == "Select LLM Provider").set_value("Gemini").run()
+    next(t for t in app.text_input if t.label == "Gemini API Key").input("test-key").run()
+    assert any("sent to Google" in c.value for c in app.caption)
+    next(b for b in app.button if b.label == "Create Quiz").click().run()
+    assert not app.exception, app.exception
+    assert not app.error, [e.value for e in app.error]
+    assert reads == ["application/pdf", "application/pdf"]
+    assert len(app.session_state["qa_pairs"]) == 10
+
+
+def test_image_without_gemini_explains_what_to_do(app, monkeypatch):
+    _upload(monkeypatch, "diagram.png", b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+    app.run()
+    next(b for b in app.button if b.label == "Create Quiz").click().run()
+    assert not app.exception, app.exception
+    assert any("Gemini" in e.value for e in app.error)
+    assert "qa_pairs" not in app.session_state
+
+
 def test_mcq_flow_and_weak_topic_practice(store, tmp_path, monkeypatch):
     import json
     import streamlit as st

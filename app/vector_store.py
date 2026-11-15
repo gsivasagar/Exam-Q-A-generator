@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import threading
 from functools import lru_cache
 from typing import Dict, List, Optional
 
@@ -21,10 +22,17 @@ def _open(path: str, spec: str):
                                            embedding_function=get_embedding_function(spec))
 
 
+_open_lock = threading.Lock()
+
+
 def _collection():
     """The collection for the *current* config. Cached per (path, embedder), so changing either
-    at runtime opens the right store instead of silently reusing a stale one."""
-    return _open(config.CHROMA_DIR, config.EMBEDDING_MODEL)
+    at runtime opens the right store instead of silently reusing a stale one.
+
+    The lock matters on a fresh server: Chroma's client is not safe to create from several threads at once,
+    and two uploads arriving together would otherwise both try (seen as "Could not connect to tenant")."""
+    with _open_lock:
+        return _open(config.CHROMA_DIR, config.EMBEDDING_MODEL)
 
 
 _collection.cache_clear = _open.cache_clear  # type: ignore[attr-defined]  # tests/fixtures reset the cache
@@ -34,15 +42,25 @@ def file_hash(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()[:16]
 
 
-def add_chunks(chunks: List[Chunk], doc_id: str, source: str, file_id: str) -> int:
+def _where(doc_id) -> dict:
+    """Chroma filter for one document set, or for several (a list or tuple of ids)."""
+    if isinstance(doc_id, (list, tuple, set)):
+        return {"doc_id": {"$in": list(doc_id)}}
+    return {"doc_id": doc_id}
+
+
+def add_chunks(chunks: List[Chunk], doc_id: str, source: str, file_id: str, owner_id: Optional[str] = None) -> int:
     """Store chunks. IDs include file_id so multiple PDFs never collide; re-adding
-    the same file is idempotent (upsert)."""
+    the same file is idempotent (upsert). `owner_id` (accounts) is stored with every chunk so a whole
+    account can be removed in one call."""
     if not chunks:
         return 0
     parents = _parent_texts(chunks) if config.PARENT_EXPANSION else None
     metadatas = []
     for i, c in enumerate(chunks):
         meta = {"doc_id": doc_id, "source": source, "file_id": file_id, "chunk": i, "page": c.page}
+        if owner_id:
+            meta["owner_id"] = owner_id
         if c.heading:
             meta["heading"] = c.heading
         if c.page_end:
@@ -106,7 +124,7 @@ def _hits(docs, metas, embeddings=None) -> List[Hit]:
 def similarity_search(query: str, k: int = 5, doc_id: Optional[str] = None,
                       expand: Optional[bool] = None) -> List[Hit]:
     """Nearest chunks to `query`. `expand` (default: PARENT_EXPANSION) swaps chunks for their parent sections."""
-    kwargs = {"where": {"doc_id": doc_id}} if doc_id else {}
+    kwargs = {"where": _where(doc_id)} if doc_id else {}
     res = _collection().query(query_texts=[query], n_results=k,
                               include=["documents", "metadatas", "embeddings", "distances"], **kwargs)
     if not res["documents"]:
@@ -118,10 +136,15 @@ def similarity_search(query: str, k: int = 5, doc_id: Optional[str] = None,
     return expand_parents(hits) if (config.PARENT_EXPANSION if expand is None else expand) else hits
 
 
-def get_all_chunks(doc_id: str) -> List[Hit]:
-    res = _collection().get(where={"doc_id": doc_id}, include=["documents", "metadatas", "embeddings"])
+def get_all_chunks(doc_id) -> List[Hit]:
+    res = _collection().get(where=_where(doc_id), include=["documents", "metadatas", "embeddings"])
     return _hits(res["documents"], res["metadatas"], res.get("embeddings"))
 
 
 def delete_doc(doc_id: str) -> None:
-    _collection().delete(where={"doc_id": doc_id})
+    _collection().delete(where=_where(doc_id))
+
+
+def delete_owner(owner_id: str) -> None:
+    """Remove every chunk stored for one account."""
+    _collection().delete(where={"owner_id": owner_id})

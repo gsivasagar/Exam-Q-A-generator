@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import re
+import unicodedata
 from pathlib import Path
 from typing import BinaryIO, List, NamedTuple, Optional, Union
 
@@ -69,6 +70,9 @@ def chunks_from_pages(pages: List[str], *, chunk_size: Optional[int] = None, ove
     which the app treats as "no page"."""
     chunk_size = chunk_size or config.CHUNK_WORDS
     overlap = config.CHUNK_OVERLAP_WORDS if overlap is None else overlap
+    # PDFs typeset with LaTeX store "fi", "fl", "ff" as single ligature characters ("ﬁxed"). Left alone, a
+    # search for "fixed" never matches them. NFKC turns them (and full-width letters) into plain text.
+    pages = [unicodedata.normalize("NFKC", p) if p else p for p in pages]
     if (mode or config.CHUNKING) == "structured":
         chunks = [Chunk(c["text"], c["page"], c["heading"], c["page_end"] if c["page_end"] != c["page"] else None)
                   for c in structured_chunks(pages, config.CHUNK_TARGET_TOKENS, config.CHUNK_OVERLAP_TOKENS,
