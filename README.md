@@ -78,6 +78,23 @@ PDF, Word (`.docx`), PowerPoint (`.pptx`), Markdown, plain text, or a web page a
 *   **Grading**: `GRADING_MODE=rubric` (default) scores short answers by the key points they cover, computed in code; `holistic` asks the model for a 0-1 score. Blank / "I don't know" and exact-match answers are scored without calling the model.
 *   **Speed**: independent LLM calls can run in parallel. Gemini defaults to 4 at once (`GEMINI_CONCURRENCY`); Ollama defaults to 1 (`OLLAMA_CONCURRENCY`; raise it together with Ollama's `OLLAMA_NUM_PARALLEL`). `LLM_CACHE_DIR` caches identical requests on disk (useful for development and evaluation).
 
+## 🌐 HTTP API and React app (in progress)
+Besides the Streamlit app there is a FastAPI back end (`app/api/`) and a React + TypeScript + Vite front end (`frontend/`). They reuse the same ingestion, quiz generation and grading code.
+
+*   **Accounts**: email and password (argon2id, 12 to 128 characters), or a guest session that expires after `GUEST_TTL_DAYS` (7) and can be upgraded to an account in place. Access tokens are short JWTs (`ACCESS_TTL_MIN`, 15) held in memory by the page; a rotating refresh token lives in an httpOnly cookie and is stored on the server only as a hash. Reusing an old refresh token signs that session out.
+*   **Per-account data**: every document, quiz and session has an owner, and so does every chunk in the vector store. Another account's item always returns 404. A test runs every route as a second account and fails if a new route is not covered.
+*   **Account page**: change password, list and sign out devices, download your data, delete the account.
+*   **Not done yet**: chat (the endpoint returns 501 in this version), exports and the review queue in the React app, password reset and email verification. Rate limits are kept in memory.
+*   **Status**: tested with FastAPI's test client, a fake server for the front end, and one run of the Gemini calls. It has not been used in production. Details, trade-offs and limits: `docs/SYSTEM_DOCUMENTATION.md`, `frontend/API.md`, `frontend/README.md`.
+
+Run it (Python 3.11 or newer; Node 20.19 or newer for the front end):
+```bash
+python -m pip install --only-binary=:all: -r requirements.txt
+AUTH_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))") python -m uvicorn app.api.main:app --port 8000
+cd frontend && npm ci && npm run dev      # open http://localhost:5173
+```
+Settings: `APP_ENV` (`production` turns on secure cookies and refuses to start without a real `AUTH_SECRET`), `AUTH_SECRET`, `APP_ORIGIN`, `COOKIE_SECURE`, `GUEST_MAX_FILES`, `GUEST_MAX_UPLOAD_MB`, `TRUSTED_PROXY_HOPS` (the number of proxies in front of the server, so rate limits see the real address). See `app/config.py`.
+
 ## 🧪 Development
 ```bash
 pip install -e . -r requirements-dev.txt
@@ -85,4 +102,4 @@ pytest
 ruff check app tests        # lint (pip install ruff, or: uvx ruff check app tests)
 ```
 Optional: `pre-commit install` runs ruff before every commit.
-Tests use a fake LLM and a real temporary Chroma store, so no Ollama is needed.
+Tests use a fake LLM and a real temporary Chroma store, so no Ollama is needed. Front end: `cd frontend && npm test` (also `npm run typecheck`, `npm run lint`, `npm run build`).
